@@ -1,4 +1,4 @@
-import type { UserConfig } from 'unocss'
+import type { UserConfig } from '@unocss/core'
 import type { ConfigureMonacoUnocss, MonacoUnocssOptions } from './types/configure'
 import type { UnocssWorker } from './types/worker'
 import { registerMarkerDataProvider } from 'monaco-marker-data-provider'

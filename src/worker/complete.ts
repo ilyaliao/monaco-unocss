@@ -5,4 +5,5 @@ export function doComplete(state: any, document: any): CompletionList | undefine
   console.log('start complete', document)
 
   return undefined
+  // return parseAutocomplete.suggestInFile(content, cursor)
 }

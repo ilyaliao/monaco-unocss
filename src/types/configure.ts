@@ -1,5 +1,5 @@
+import type { UserConfig } from '@unocss/core'
 import type { IDisposable, languages, MonacoEditor } from 'monaco-types'
-import type { UserConfig } from 'unocss'
 
 /**
  * A UnoCSS configuration, but without content.

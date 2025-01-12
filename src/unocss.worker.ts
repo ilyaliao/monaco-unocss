@@ -1,4 +1,4 @@
-import type { UserConfig } from 'unocss'
+import type { UserConfig } from '@unocss/core'
 import type { MonacoUnocssOptions, UnocssConfig, UnocssWorkerOptions } from './types/configure'
 import type { UnocssWorker } from './types/worker'
 import { initialize as initializeWorker } from 'monaco-worker-manager/worker'
@@ -16,6 +16,10 @@ async function stateFromConfig(
 export function initialize(unocssWorkerOptions?: UnocssWorkerOptions): void {
   // eslint-disable-next-line no-console
   console.log('initialize unocss worker', JSON.stringify(unocssWorkerOptions))
+
+  // const generator = createGenerator({})
+  // const autocomplete = createAutocomplete(generator)
+
   initializeWorker<UnocssWorker, MonacoUnocssOptions>((ctx, options) => {
     const preparedUnocssConfig
           = unocssWorkerOptions?.prepareUnocssConfig?.(options.unocssConfig)
