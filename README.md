@@ -11,6 +11,15 @@ UnoCSS integration for Monaco editor
 > [!IMPORTANT]
 > Work in progress, not yet useable.
 
+## TODOs
+
+- [ ] Worker
+    - [ ] Hover
+    - [ ] Code Action
+    - [ ] Completion
+    - [ ] Colors
+- [ ] GenerateStylesFromContent
+
 ## Inspiration
 
 This project also partially contains code derived or copied from [monaco-tailwindcss](https://github.com/remcohaszing/monaco-tailwindcss).
