@@ -8,6 +8,13 @@
 
 UnoCSS integration for Monaco editor
 
+> [!IMPORTANT]
+> Work in progress, not yet useable.
+
+## Credits
+
+This project also partially contains code derived or copied from [monaco-tailwindcss](https://github.com/remcohaszing/monaco-tailwindcss).
+
 ## License
 
 [MIT](./LICENSE) License © 2024-PRESENT [IlyaL](https://github.com/ilyaliao)
