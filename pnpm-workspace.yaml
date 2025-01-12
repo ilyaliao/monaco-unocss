@@ -1,5 +1,6 @@
 packages:
   - playground
   - docs
-  - packages/*
   - examples/*
+catalog:
+  vite: ^6.0.1
