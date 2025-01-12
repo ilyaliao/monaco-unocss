@@ -1,40 +1,9 @@
 import type { UserConfig } from 'unocss'
-import type {
-  CodeActionContext,
-  CompletionContext,
-  CompletionItem,
-  Position,
-  Range,
-} from 'vscode-languageserver-protocol'
-import type { MonacoUnocssOptions, UnocssConfig, UnocssWorkerOptions } from './types'
+import type { MonacoUnocssOptions, UnocssConfig, UnocssWorkerOptions } from './types/configure'
+import type { UnocssWorker } from './types/worker'
 import { initialize as initializeWorker } from 'monaco-worker-manager/worker'
 import { TextDocument } from 'vscode-languageserver-textdocument'
-
-export interface UnocssWorker {
-  doCodeActions: (
-    uri: string,
-    languageId: string,
-    range: Range,
-    context: CodeActionContext
-  ) => undefined
-
-  doComplete: (
-    uri: string,
-    languageId: string,
-    position: Position,
-    context: CompletionContext
-  ) => undefined
-
-  doHover: (uri: string, languageId: string, position: Position) => undefined
-
-  doValidate: (uri: string, languageId: string) => undefined
-
-  generateStylesFromContent: (css: string, content: any[]) => string
-
-  getDocumentColors: (uri: string, languageId: string) => undefined
-
-  resolveCompletionItem: (item: CompletionItem) => undefined
-}
+import { doComplete } from './worker/complete'
 
 async function stateFromConfig(
   configPromise: PromiseLike<UnocssConfig> | UnocssConfig,
@@ -87,7 +56,7 @@ export function initialize(unocssWorkerOptions?: UnocssWorkerOptions): void {
         undefined,
       ),
 
-      doComplete: withDocument(() => undefined),
+      doComplete: withDocument(doComplete),
 
       doHover: withDocument(() => undefined),
 
