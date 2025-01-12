@@ -65,3 +65,15 @@ export type ConfigureMonacoUnocss = (
  * It will provider hover information from the Tailwindcss documentation, including a link.
  */
 // export const unocssData: languages.css.CSSDataV1
+
+export interface UnocssWorkerOptions {
+  /**
+   * Hook that will run before the tailwind config is used.
+   *
+   * @param unocssConfig
+   *   The UnoCSS configuration passed from the main thread.
+   * @returns
+   *   A valid UnoCSS configuration.
+   */
+  prepareUnocssConfig?: (tailwindConfig?: UnocssConfig | string) => UserConfig | PromiseLike<UserConfig>
+}
