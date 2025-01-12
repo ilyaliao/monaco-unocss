@@ -14,9 +14,18 @@ importers:
 
   .:
     dependencies:
+      '@ctrl/tinycolor':
+        specifier: ^4.1.0
+        version: 4.1.0
       monaco-editor:
         specifier: '>=0.36'
         version: 0.52.2
+      monaco-languageserver-types:
+        specifier: ^0.4.0
+        version: 0.4.0
+      monaco-marker-data-provider:
+        specifier: ^1.2.4
+        version: 1.2.4
       monaco-types:
         specifier: ^0.1.0
         version: 0.1.0
@@ -262,6 +271,10 @@ packages:
 
   '@clack/prompts@0.8.2':
     resolution: {integrity: sha512-6b9Ab2UiZwJYA9iMyboYyW9yJvAO9V753ZhS+DHKEjZRKAxPPOb7MXXu84lsPFG+vZt6FRFniZ8rXi+zCIw4yQ==}
+
+  '@ctrl/tinycolor@4.1.0':
+    resolution: {integrity: sha512-WyOx8cJQ+FQus4Mm4uPIZA64gbk3Wxh0so5Lcii0aJifqwoVOlfFtorjLE0Hen4OYyHZMXDWqMmaQemBhgxFRQ==}
+    engines: {node: '>=14'}
 
   '@es-joy/jsdoccomment@0.48.0':
     resolution: {integrity: sha512-G6QUWIcC+KvSwXNsJyDTHvqUdNoAVJPPgkc3+Uk4WBKqZvoXhlvazOgm9aL0HwihJLQf0l+tOE2UFzXBqCqgDw==}
@@ -2584,6 +2597,12 @@ packages:
   monaco-editor@0.52.2:
     resolution: {integrity: sha512-GEQWEZmfkOGLdd3XK8ryrfWz3AIP8YymVXiPHEdewrUq7mh0qrKrfHLNCXcbB6sTnMLnOZ3ztSiKcciFUkIJwQ==}
 
+  monaco-languageserver-types@0.4.0:
+    resolution: {integrity: sha512-QQ3BZiU5LYkJElGncSNb5AKoJ/LCs6YBMCJMAz9EA7v+JaOdn3kx2cXpPTcZfKA5AEsR0vc97sAw+5mdNhVBmw==}
+
+  monaco-marker-data-provider@1.2.4:
+    resolution: {integrity: sha512-4DsPgsAqpTyUDs3humXRBPUJoihTv+L6v9aupQWD80X2YXaCXUd11mWYeSCYHuPgdUmjFaNWCEOjQ6ewf/QA1Q==}
+
   monaco-types@0.1.0:
     resolution: {integrity: sha512-aWK7SN9hAqNYi0WosPoMjenMeXJjwCxDibOqWffyQ/qXdzB/86xshGQobRferfmNz7BSNQ8GB0MD0oby9/5fTQ==}
 
@@ -3438,6 +3457,9 @@ packages:
   vscode-languageserver-types@3.17.5:
     resolution: {integrity: sha512-Ld1VelNuX9pdF39h2Hgaeb5hEZM2Z3jUrrMgWQAu82jMtZp7p3vJT3BzToKtZI7NgQssZje5o0zryOrhQvzQAg==}
 
+  vscode-uri@3.0.8:
+    resolution: {integrity: sha512-AyFQ0EVmsOZOlAnxoFOGOq1SQDWAB7C6aqMGS23svWAllfOaxbuFvcT8D1i8z3Gyn8fraVeZNNmN6e9bxxXkKw==}
+
   vue-eslint-parser@9.4.3:
     resolution: {integrity: sha512-2rYRLWlIpaiN8xbPiDyXZXRgLGOtWxERV7ND5fFAv5qo1D2N9Fu9MNajBNc6o13lZ+24DAWCkQCvj4klgmcITg==}
     engines: {node: ^14.17.0 || >=16.0.0}
@@ -3736,6 +3758,8 @@ snapshots:
       '@clack/core': 0.3.5
       picocolors: 1.1.1
       sisteransi: 1.0.5
+
+  '@ctrl/tinycolor@4.1.0': {}
 
   '@es-joy/jsdoccomment@0.48.0':
     dependencies:
@@ -6196,11 +6220,24 @@ snapshots:
 
   monaco-editor@0.52.2: {}
 
+  monaco-languageserver-types@0.4.0:
+    dependencies:
+      monaco-types: 0.1.0
+      vscode-languageserver-protocol: 3.17.5
+      vscode-uri: 3.0.8
+
+  monaco-marker-data-provider@1.2.4:
+    dependencies:
+      monaco-types: 0.1.0
+
   monaco-types@0.1.0: {}
 
   monaco-unocss@file:(monaco-editor@0.52.2)(postcss@8.4.49)(rollup@3.29.4)(vite@6.0.1(@types/node@22.10.1)(jiti@2.4.2)(tsx@4.19.2)(yaml@2.5.0))(vue@3.5.13(typescript@5.7.2)):
     dependencies:
+      '@ctrl/tinycolor': 4.1.0
       monaco-editor: 0.52.2
+      monaco-languageserver-types: 0.4.0
+      monaco-marker-data-provider: 1.2.4
       monaco-types: 0.1.0
       monaco-worker-manager: 2.0.1(monaco-editor@0.52.2)
       unocss: 65.4.0(postcss@8.4.49)(rollup@3.29.4)(vite@6.0.1(@types/node@22.10.1)(jiti@2.4.2)(tsx@4.19.2)(yaml@2.5.0))(vue@3.5.13(typescript@5.7.2))
@@ -7052,6 +7089,8 @@ snapshots:
   vscode-languageserver-textdocument@1.0.12: {}
 
   vscode-languageserver-types@3.17.5: {}
+
+  vscode-uri@3.0.8: {}
 
   vue-eslint-parser@9.4.3(eslint@9.15.0(jiti@2.4.2)):
     dependencies:
