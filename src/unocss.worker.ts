@@ -1,54 +1,20 @@
-import type { UserConfig } from 'unocss'
-import type {
-  CodeActionContext,
-  CompletionContext,
-  CompletionItem,
-  Position,
-  Range,
-} from 'vscode-languageserver-protocol'
-import type { MonacoUnocssOptions, UnocssConfig, UnocssWorkerOptions } from './types'
+import type { UnoGenerator, UserConfig, UserConfigDefaults } from '@unocss/core'
+import type { MonacoUnocssOptions, UnocssWorkerOptions } from './types/configure'
+import type { UnocssWorker } from './types/worker'
+import { createAutocomplete } from '@unocss/autocomplete'
+import { createGenerator } from '@unocss/core'
 import { initialize as initializeWorker } from 'monaco-worker-manager/worker'
 import { TextDocument } from 'vscode-languageserver-textdocument'
+import { doComplete } from './worker/complete'
 
-export interface UnocssWorker {
-  doCodeActions: (
-    uri: string,
-    languageId: string,
-    range: Range,
-    context: CodeActionContext
-  ) => undefined
-
-  doComplete: (
-    uri: string,
-    languageId: string,
-    position: Position,
-    context: CompletionContext
-  ) => undefined
-
-  doHover: (uri: string, languageId: string, position: Position) => undefined
-
-  doValidate: (uri: string, languageId: string) => undefined
-
-  generateStylesFromContent: (css: string, content: any[]) => string
-
-  getDocumentColors: (uri: string, languageId: string) => undefined
-
-  resolveCompletionItem: (item: CompletionItem) => undefined
-}
-
-async function stateFromConfig(
-  configPromise: PromiseLike<UnocssConfig> | UnocssConfig,
-): Promise<any> {
-  // eslint-disable-next-line no-console
-  console.log('stateFromConfig', configPromise)
-  return {}
+async function generatorConfig(configPromise: PromiseLike<UserConfig> | UserConfig, defaultConfig: UserConfigDefaults): Promise<UnoGenerator<object>> {
+  const preparedUnocssConfig = await configPromise
+  return await createGenerator(preparedUnocssConfig, defaultConfig)
 }
 
 export function initialize(unocssWorkerOptions?: UnocssWorkerOptions): void {
-  // eslint-disable-next-line no-console
-  console.log('initialize unocss worker', JSON.stringify(unocssWorkerOptions))
   initializeWorker<UnocssWorker, MonacoUnocssOptions>((ctx, options) => {
-    const preparedUnocssConfig
+    const preparedUnocssConfig: UserConfig | PromiseLike<UserConfig>
           = unocssWorkerOptions?.prepareUnocssConfig?.(options.unocssConfig)
           ?? options.unocssConfig
           ?? ({} as UserConfig)
@@ -60,34 +26,36 @@ export function initialize(unocssWorkerOptions?: UnocssWorkerOptions): void {
       )
     }
 
-    const statePromise = stateFromConfig(preparedUnocssConfig)
+    // const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument)
+
+    const defaultUnocssConfig: UserConfigDefaults = {}
+
+    const generator = generatorConfig(preparedUnocssConfig, defaultUnocssConfig)
+    const autocomplete = createAutocomplete(generator)
 
     const withDocument
       = <A extends unknown[], R>(
-        fn: (state: any, document: TextDocument, ...args: A) => any,
+        fn: (document: TextDocument, ...args: A) => any,
       ) =>
         (uri: string, languageId: string, ...args: A): Promise<R> | undefined => {
           const models = ctx.getMirrorModels()
           for (const model of models) {
             if (String(model.uri) === uri) {
-              return statePromise.then(state =>
-                fn(
-                  state,
-                  TextDocument.create(uri, languageId, model.version, model.getValue()),
-                  ...args,
-                ),
+              return fn(
+                TextDocument.create(uri, languageId, model.version, model.getValue()),
+                ...args,
               )
             }
           }
         }
 
     return {
-      doCodeActions: withDocument((_state, _textDocument, _range, _context) =>
+      doCodeActions: withDocument((_textDocument, _range, _context) =>
         // doCodeActions(state, { range, context, textDocument }, textDocument),
         undefined,
       ),
 
-      doComplete: withDocument(() => undefined),
+      doComplete: withDocument((document, position) => doComplete(document, position, autocomplete)),
 
       doHover: withDocument(() => undefined),
 

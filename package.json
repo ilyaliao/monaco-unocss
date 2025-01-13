@@ -57,11 +57,12 @@
   },
   "dependencies": {
     "@ctrl/tinycolor": "^4.1.0",
+    "@unocss/autocomplete": "^65.4.0",
+    "@unocss/core": "^65.4.0",
     "monaco-languageserver-types": "^0.4.0",
     "monaco-marker-data-provider": "^1.2.4",
     "monaco-types": "^0.1.0",
     "monaco-worker-manager": "^2.0.1",
-    "unocss": "^65.4.0",
     "vscode-languageserver-protocol": "^3.17.5",
     "vscode-languageserver-textdocument": "^1.0.12"
   },
@@ -78,6 +79,7 @@
     "simple-git-hooks": "^2.11.1",
     "typescript": "^5.7.2",
     "unbuild": "^2.0.0",
+    "unocss": "^65.4.0",
     "vite": "catalog:",
     "vitest": "^2.1.6"
   },
