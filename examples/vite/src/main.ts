@@ -1,7 +1,8 @@
 import * as monaco from 'monaco-editor'
 import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker.js?worker'
 import { configureMonacoUnocss } from 'monaco-unocss'
-import UnocssWorker from 'monaco-unocss/unocss.worker?worker'
+
+configureMonacoUnocss(monaco)
 
 window.MonacoEnvironment = {
   getWorker(_moduleId, label) {
@@ -9,16 +10,16 @@ window.MonacoEnvironment = {
       case 'editorWorkerService':
         return new EditorWorker()
       case 'unocss':
-        return new UnocssWorker()
+        return new Worker(new URL('unocss.worker.ts', import.meta.url), {
+          type: 'module',
+        })
       default:
         throw new Error(`Unknown label ${label}`)
     }
   },
 }
 
-configureMonacoUnocss(monaco, {})
-
-monaco.editor.create(document.getElementById('editor'), {
+monaco.editor.create(document.getElementById('app')!, {
   automaticLayout: true,
   language: 'html',
   value: `<!doctype html>

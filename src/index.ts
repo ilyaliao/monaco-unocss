@@ -15,9 +15,6 @@ export const defaultLanguageSelector = ['css', 'javascript', 'html', 'mdx', 'typ
 
 export const configureMonacoUnocss: ConfigureMonacoUnocss
   = (monaco, { languageSelector = defaultLanguageSelector, unocssConfig } = {}) => {
-    // eslint-disable-next-line no-console
-    console.log('test', languageSelector, unocssConfig)
-
     const workerManager = createWorkerManager<UnocssWorker, MonacoUnocssOptions>(monaco, {
       label: 'unocss',
       moduleId: 'monaco-unocss/unocss.worker',
@@ -67,7 +64,7 @@ export const configureMonacoUnocss: ConfigureMonacoUnocss
         }
       },
 
-      setUnocssConfig: (newUnocssConfig: UserConfig | string) => {
+      setUnocssConfig: (newUnocssConfig: UserConfig) => {
         workerManager.updateCreateData({ unocssConfig: newUnocssConfig })
       },
 

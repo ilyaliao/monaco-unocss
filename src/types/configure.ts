@@ -18,7 +18,7 @@ export interface MonacoUnocssOptions {
    * This may be either the UnoCSS configuration object, or a string that gets processed in the
    * worker.
    */
-  unocssConfig?: UnocssConfig | string
+  unocssConfig?: UnocssConfig
 }
 
 /**
@@ -38,7 +38,7 @@ export interface MonacoUnocss extends IDisposable {
    * @param unocssConfig
    *   The new UnoCSS configuration.
    */
-  setUnocssConfig: (unocssConfig: UnocssConfig | string) => void
+  setUnocssConfig: (unocssConfig: UnocssConfig) => void
 
   /**
    * Generate styles using UnoCSS.
@@ -75,5 +75,5 @@ export interface UnocssWorkerOptions {
    * @returns
    *   A valid UnoCSS configuration.
    */
-  prepareUnocssConfig?: (tailwindConfig?: UnocssConfig | string) => UserConfig | PromiseLike<UserConfig>
+  prepareUnocssConfig?: (unocssConfig?: UnocssConfig) => UserConfig | PromiseLike<UserConfig>
 }
