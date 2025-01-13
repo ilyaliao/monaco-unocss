@@ -20,15 +20,15 @@ export interface UnocssWorker {
     languageId: string,
     position: Position,
     context: CompletionContext
-  ) => CompletionList | undefined
+  ) => Promise<CompletionList | undefined>
 
-  doHover: (uri: string, languageId: string, position: Position) => undefined
+  doHover: (uri: string, languageId: string, position: Position) => any
 
-  doValidate: (uri: string, languageId: string) => undefined
+  doValidate: (uri: string, languageId: string) => any
 
   generateStylesFromContent: (css: string, content: any[]) => string
 
-  getDocumentColors: (uri: string, languageId: string) => undefined
+  getDocumentColors: (uri: string, languageId: string) => any
 
-  resolveCompletionItem: (item: CompletionItem) => undefined
+  resolveCompletionItem: (item: CompletionItem) => any
 }

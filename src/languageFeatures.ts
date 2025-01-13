@@ -1,9 +1,10 @@
 import type { MarkerDataProvider } from 'monaco-marker-data-provider'
 import type { editor, languages, MonacoEditor } from 'monaco-types'
 import type { WorkerGetter } from 'monaco-worker-manager'
-import type { UnocssWorker } from './unocss.worker'
-import { fromRatio, names as namedColors } from '@ctrl/tinycolor'
+import type { ColorInformation } from 'vscode-languageserver-protocol'
 
+import type { UnocssWorker } from './types/worker'
+import { fromRatio, names as namedColors } from '@ctrl/tinycolor'
 import {
   fromCodeActionContext,
   fromCompletionContext,
@@ -39,7 +40,7 @@ function createColorClass(color: languages.IColor): string {
   )}`
   const className = `tailwindcss-color-decoration-${hex}`
   const selector = `.${className}`
-  for (const rule of sheet.cssRules) {
+  for (const rule of Array.from(sheet.cssRules)) {
     if ((rule as CSSStyleRule).selectorText === selector) {
       return className
     }
@@ -64,9 +65,10 @@ export function createColorProvider(
 
       const editableColors: languages.IColorInformation[] = []
       const nonEditableColors: editor.IModelDeltaDecoration[] = []
-      const colors = await worker.getDocumentColors(String(model.uri), model.getLanguageId())
+      // TODO: wait implementation of getDocumentColors in worker
+      const colors: ColorInformation[] = await worker.getDocumentColors(String(model.uri), model.getLanguageId())
       if (colors) {
-        for (const lsColor of colors) {
+        for (const lsColor of Array.from(colors)) {
           const monacoColor = toColorInformation(lsColor)
           const text = model.getValueInRange(monacoColor.range)
           if (editableColorRegex.test(text)) {
@@ -157,7 +159,8 @@ export function createCodeActionProvider(getWorker: WorkerAccessor): languages.C
     async provideCodeActions(model, range, context) {
       const worker = await getWorker(model.uri)
 
-      const codeActions = await worker.doCodeActions(
+      // TODO: wait implementation of getCodeActions in worker
+      const codeActions: any = await worker.doCodeActions(
         String(model.uri),
         model.getLanguageId(),
         fromRange(range),
