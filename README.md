@@ -11,12 +11,19 @@ UnoCSS integration for Monaco editor
 > [!IMPORTANT]
 > Work in progress, not yet useable.
 
+## Features
+
+### Auto Completion
+
+<video src="https://github.com/user-attachments/assets/c89d8f10-cb54-49d6-a4d8-f088b4ac249c" controls>
+</video>
+
 ## TODOs
 
 - [ ] Worker
     - [ ] Hover
     - [ ] Code Action
-    - [ ] Completion
+    - [x] Completion
     - [ ] Colors
 - [ ] GenerateStylesFromContent
 
