@@ -18,10 +18,15 @@ UnoCSS integration for Monaco editor
 <video src="https://github.com/user-attachments/assets/c89d8f10-cb54-49d6-a4d8-f088b4ac249c" controls>
 </video>
 
+### Hover
+
+<video src="https://github.com/user-attachments/assets/20b7f1d6-57e8-4446-bd0e-543ce2324b4a" controls>
+</video>
+
 ## TODOs
 
 - [ ] Worker
-    - [ ] Hover
+    - [x] Hover
     - [ ] Code Action
     - [x] Completion
     - [ ] Colors
