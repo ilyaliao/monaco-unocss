@@ -6,6 +6,7 @@ import { createGenerator } from '@unocss/core'
 import { initialize as initializeWorker } from 'monaco-worker-manager/worker'
 import { TextDocument } from 'vscode-languageserver-textdocument'
 import { doComplete } from './worker/complete'
+import { doHover } from './worker/hover'
 
 async function generatorConfig(configPromise: PromiseLike<UserConfig> | UserConfig, defaultConfig: UserConfigDefaults): Promise<UnoGenerator<object>> {
   const preparedUnocssConfig = await configPromise
@@ -25,8 +26,6 @@ export function initialize(unocssWorkerOptions?: UnocssWorkerOptions): void {
         )}`,
       )
     }
-
-    // const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument)
 
     const defaultUnocssConfig: UserConfigDefaults = {}
 
@@ -57,7 +56,7 @@ export function initialize(unocssWorkerOptions?: UnocssWorkerOptions): void {
 
       doComplete: withDocument((document, position) => doComplete(document, position, autocomplete)),
 
-      doHover: withDocument(() => undefined),
+      doHover: withDocument((document, position) => doHover(document, position, generator)),
 
       doValidate: withDocument(() => undefined),
 

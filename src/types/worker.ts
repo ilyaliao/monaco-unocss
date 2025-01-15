@@ -3,6 +3,7 @@ import type {
   CompletionContext,
   CompletionItem,
   CompletionList,
+  Hover,
   Position,
   Range,
 } from 'vscode-languageserver-protocol'
@@ -22,7 +23,7 @@ export interface UnocssWorker {
     context: CompletionContext
   ) => Promise<CompletionList | undefined>
 
-  doHover: (uri: string, languageId: string, position: Position) => any
+  doHover: (uri: string, languageId: string, position: Position) => Promise<Hover | undefined> | undefined
 
   doValidate: (uri: string, languageId: string) => any
 
