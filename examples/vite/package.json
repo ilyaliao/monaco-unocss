@@ -7,11 +7,14 @@
     "dev": "vite",
     "preview": "vite preview"
   },
+  "dependencies": {
+    "monaco-unocss": "workspace:*"
+  },
   "devDependencies": {
     "monaco-editor": "^0.52.2",
     "monaco-unocss": "^0.0.0",
-    "typescript": "~5.6.2",
-    "unocss": "^65.4.0",
-    "vite": "catalog:"
+    "typescript": "~5.8.3",
+    "unocss": "^66.2.0",
+    "vite": "^6.3.5"
   }
 }

@@ -17,8 +17,8 @@ export function initialize(unocssWorkerOptions?: UnocssWorkerOptions): void {
   initializeWorker<UnocssWorker, MonacoUnocssOptions>((ctx, options) => {
     const preparedUnocssConfig: UserConfig | PromiseLike<UserConfig>
           = unocssWorkerOptions?.prepareUnocssConfig?.(options.unocssConfig)
-          ?? options.unocssConfig
-          ?? ({} as UserConfig)
+            ?? options.unocssConfig
+            ?? ({} as UserConfig)
     if (typeof preparedUnocssConfig !== 'object') {
       throw new TypeError(
         `Expected unocssConfig to resolve to an object, but got: ${JSON.stringify(
