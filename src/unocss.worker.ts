@@ -29,8 +29,8 @@ export function initialize(unocssWorkerOptions?: UnocssWorkerOptions): void {
 
     const defaultUnocssConfig: UserConfigDefaults = {}
 
-    const generator = generatorConfig(preparedUnocssConfig, defaultUnocssConfig)
-    const autocomplete = createAutocomplete(generator)
+    const __uno = generatorConfig(preparedUnocssConfig, defaultUnocssConfig)
+    const autocomplete = createAutocomplete(__uno)
 
     const withDocument
       = <A extends unknown[], R>(
@@ -56,7 +56,7 @@ export function initialize(unocssWorkerOptions?: UnocssWorkerOptions): void {
 
       doComplete: withDocument((document, position) => doComplete(document, position, autocomplete)),
 
-      doHover: withDocument((document, position) => doHover(document, position, generator)),
+      doHover: withDocument((document, position) => doHover(document, position, __uno)),
 
       doValidate: withDocument(() => undefined),
 

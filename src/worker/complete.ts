@@ -12,15 +12,15 @@ export async function doComplete(document: TextDocument, position: Position, aut
 
   const result = await autocomplete.suggestInFile(content, cursor)
 
-  if (result == null)
+  if (!result?.suggestions?.length)
     return undefined
 
   return {
     isIncomplete: false,
-    items: result.suggestions.map((s, i) => {
-      const resolved = result.resolveReplacement(s[0])
+    items: result.suggestions.map(([value, label], i) => {
+      const resolved = result.resolveReplacement(value)
       return {
-        label: s[0],
+        label,
         kind: CompletionItemKind.Constant,
         data: i,
         textEdit: {
