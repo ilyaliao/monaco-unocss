@@ -31,17 +31,20 @@ let editorInstance: editor.IStandaloneCodeEditor | undefined
 let changeDisposable: IDisposable | undefined
 
 function revealMarker(value: string): void {
-  if (!editorInstance || !props.revealMarker) return
+  if (!editorInstance || !props.revealMarker)
+    return
 
   const markerOffset = value.indexOf(props.revealMarker)
-  if (markerOffset === -1) return
+  if (markerOffset === -1)
+    return
 
   const lineNumber = value.slice(0, markerOffset).split('\n').length
   editorInstance.revealLineNearTop(lineNumber)
 }
 
 onMounted(() => {
-  if (!editorElement.value) return
+  if (!editorElement.value)
+    return
 
   editorInstance = props.monaco.createEditor({
     ariaLabel: props.editorLabel,

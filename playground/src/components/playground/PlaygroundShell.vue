@@ -25,7 +25,9 @@ const {
     <a class="skip-link" href="#playground-main">Skip to playground</a>
 
     <header class="workspace-bar">
-      <h1 class="sr-only">monaco-unocss playground</h1>
+      <h1 class="sr-only">
+        monaco-unocss playground
+      </h1>
       <span class="brand-mark" title="UnoCSS" aria-hidden="true">
         <img class="h-7 w-7" src="/unocss.svg" alt="">
       </span>

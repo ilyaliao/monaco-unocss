@@ -52,7 +52,7 @@
     "prepack": "pnpm build",
     "release": "bumpp -r",
     "test": "pnpm build && vitest",
-    "typecheck": "pnpm build && tsc --noEmit",
+    "typecheck": "pnpm --dir playground typecheck && tsc",
     "prepare": "simple-git-hooks"
   },
   "peerDependencies": {
