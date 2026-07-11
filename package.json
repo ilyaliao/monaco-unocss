@@ -4,7 +4,10 @@
   "version": "0.0.0",
   "packageManager": "pnpm@10.12.1",
   "description": "UnoCSS integration for Monaco editor",
-  "author": "Ilyal <ilyaliao324@gamil.com>",
+  "author": {
+    "name": "Ilyal",
+    "url": "https://github.com/ilyaliao"
+  },
   "license": "MIT",
   "homepage": "https://github.com/ilyaliao/monaco-unocss#readme",
   "repository": {
@@ -12,7 +15,15 @@
     "url": "git+https://github.com/ilyaliao/monaco-unocss.git"
   },
   "bugs": "https://github.com/ilyaliao/monaco-unocss/issues",
-  "keywords": [],
+  "keywords": [
+    "monaco-editor",
+    "monaco",
+    "unocss",
+    "intellisense",
+    "autocomplete",
+    "language-server",
+    "worker"
+  ],
   "sideEffects": false,
   "exports": {
     ".": {
@@ -32,13 +43,16 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsdown",
     "watch": "tsdown --watch",
     "play": "nr -C examples/vite dev",
     "lint": "eslint .",
     "prepublishOnly": "nr build",
-    "release": "bumpp && pnpm publish",
+    "release": "bumpp -r",
     "start": "esno src/index.ts",
     "test": "vitest",
     "typecheck": "tsc --noEmit",
