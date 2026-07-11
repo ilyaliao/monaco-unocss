@@ -7,7 +7,6 @@ import type {
   CompletionList,
   Hover,
   Position,
-  Range,
 } from 'vscode-languageserver-protocol'
 import type { Content, GenerateStylesFromContentOptions } from './configure'
 

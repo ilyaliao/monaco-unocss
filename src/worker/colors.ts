@@ -1,29 +1,19 @@
-import type { UnoGenerator } from '@unocss/core'
 import type { ColorInformation } from 'vscode-languageserver-protocol'
-import type { TextDocument } from 'vscode-languageserver-textdocument'
+import type { DocumentSession } from './document-session'
 import { getColorString, parseColorToRGBA } from '../vendor/color'
 import { getCSS } from '../vendor/css'
-import { getMatchedPositionsForDocument } from './matched-positions-cache'
 
 export async function getDocumentColors(
-  document: TextDocument,
-  generator: Promise<UnoGenerator<object>>,
+  session: DocumentSession,
 ): Promise<ColorInformation[] | undefined> {
-  let uno: UnoGenerator<object>
-  try {
-    uno = await generator
-  }
-  catch {
+  const { document } = session
+  const uno = await session.getGenerator()
+  if (!uno)
     return undefined
-  }
 
-  let positions: Awaited<ReturnType<typeof getMatchedPositionsForDocument>>
-  try {
-    positions = await getMatchedPositionsForDocument(uno, document)
-  }
-  catch {
+  const positions = await session.getMatchedPositions()
+  if (!positions)
     return undefined
-  }
 
   const isAttributify = uno.config.presets.some(i => i.name === '@unocss/preset-attributify')
   const isWind4 = uno.config.presets.some(i => i.name === '@unocss/preset-wind4')

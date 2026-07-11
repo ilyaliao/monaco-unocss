@@ -15,8 +15,11 @@ flowchart LR
   Configure --> Providers["Monaco providers"]
   Providers --> MonacoWorker["Monaco createWebWorker"]
   MonacoWorker --> Worker["unocss.worker"]
-  Worker --> Features["worker feature modules"]
-  Features --> Uno["UnoCSS generator"]
+  Worker --> Factory["Document Session factory"]
+  Factory --> Session["Document Session"]
+  Worker -->|dispatch with session| Features["worker feature modules"]
+  Features -->|pull lazy dependencies| Session
+  Session --> Uno["UnoCSS generator"]
 ```
 
 ## Runtime map
@@ -33,14 +36,16 @@ flowchart LR
 ### Worker
 
 - `src/unocss.worker.ts` initializes the worker endpoint.
-- The worker builds an UnoCSS generator with `createGenerator()`.
-- The worker builds autocomplete with `createAutocomplete()`.
-- Mirrored Monaco models are converted to `TextDocument` before worker feature modules run.
+- The worker creates one Document Session factory from the mirror-model getter and prepared UnoCSS config.
+- The factory resolves mirrored Monaco models into `TextDocument`-backed sessions.
+- The factory owns the generator initialization result, autocomplete memo, model generations, and matched-positions cache for the worker instance.
+- Worker feature modules pull only the lazy dependencies they need from the session.
 
 UnoCSS config can contain functions, presets, rules, shortcuts, and extractors. Keep that logic inside the worker by using `prepareUnocssConfig()`.
 
 ## Feature modules
 
+- `src/worker/document-session.ts`: document resolution, lazy UnoCSS dependencies, and matched-position cache lifecycle.
 - `src/worker/complete.ts`: utility completion and completion item resolution.
 - `src/worker/hover.ts`: hover markdown for matched utilities.
 - `src/worker/validate.ts`: diagnostics for CSS conflicts and blocklisted utilities.
@@ -48,7 +53,6 @@ UnoCSS config can contain functions, presets, rules, shortcuts, and extractors. 
 - `src/worker/colors.ts`: document color extraction.
 - `src/worker/generate-styles.ts`: CSS generation from arbitrary content.
 - `src/worker/prettied-css.ts`: generated CSS formatting for hover and completion docs.
-- `src/worker/matched-positions-cache.ts`: cache for matched utility positions per document URI and content fingerprint.
 
 ## Public types
 
@@ -85,16 +89,24 @@ sequenceDiagram
   participant Monaco
   participant Adapter as languageFeatures.ts
   participant MonacoWorker as Monaco createWebWorker
-  participant Worker as unocss.worker.ts
+  participant Worker as unocss.worker.ts dispatch
+  participant Factory as Document Session factory
+  participant Feature as worker feature module
+  participant Session as Document Session
   participant Uno as UnoCSS generator
 
   Monaco->>Adapter: completion / hover / colors / markers
   Adapter->>MonacoWorker: get worker for model URI
   MonacoWorker->>Worker: RPC call with URI and language id
-  Worker->>Worker: find mirrored model
-  Worker->>Uno: match or generate utilities
-  Uno-->>Worker: generated CSS and metadata
-  Worker-->>Adapter: LSP-style result
+  Worker->>Factory: resolveDocument(uri, languageId)
+  Factory->>Factory: reconcile model generation and prune cache
+  Factory-->>Worker: Document Session
+  Worker->>Feature: call with session first
+  Feature->>Session: request lazy dependency
+  Session->>Uno: initialize, match, or generate
+  Uno-->>Session: generated CSS and metadata
+  Session-->>Feature: dependency result or undefined
+  Feature-->>Adapter: LSP-style result
   Adapter-->>Monaco: Monaco result
 ```
 
@@ -118,10 +130,11 @@ Public API shape is covered by `test/api.test.ts` snapshots.
 
 The tests use:
 
-- `TextDocument` fixtures for document content.
-- Real UnoCSS generators from `createGenerator()`.
+- Fake mirror models resolved through the Document Session factory.
+- Real UnoCSS configs and generators created by the factory.
 - `presetWind3`, `presetWind4`, and `presetAttributify` for feature coverage.
-- Direct calls into worker modules such as `doComplete()`, `doHover()`, `doValidate()`, and `getDocumentColors()`.
+- Direct calls into worker modules with a session or factory as the first argument.
+- A new factory per test instead of production-only cache reset hooks.
 - `tsnapi` snapshots for public entry points.
 
 Use focused tests for worker behavior before reaching for browser-only verification.

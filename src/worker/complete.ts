@@ -1,17 +1,20 @@
-import type { UnocssAutocomplete } from '@unocss/autocomplete'
-import type { UnoGenerator } from '@unocss/core'
 import type { CompletionItem, CompletionList, Position } from 'vscode-languageserver-protocol'
-import type { TextDocument } from 'vscode-languageserver-textdocument'
+import type { DocumentSession, DocumentSessionFactory } from './document-session'
 import { CompletionItemKind, Range } from 'vscode-languageserver-protocol'
 import { generatePrettiedCssMarkdown } from './prettied-css'
 
-export async function doComplete(document: TextDocument, position: Position, autocomplete: UnocssAutocomplete): Promise<CompletionList | undefined> {
-  const content = document?.getText()
-  const cursor = document?.offsetAt(position)
+export async function doComplete(session: DocumentSession, position: Position): Promise<CompletionList | undefined> {
+  const { document } = session
+  const content = document.getText()
+  const cursor = document.offsetAt(position)
 
   if (!content || cursor === undefined) {
     return undefined
   }
+
+  const autocomplete = await session.getAutocomplete()
+  if (!autocomplete)
+    return undefined
 
   const result = await autocomplete.suggestInFile(content, cursor)
 
@@ -49,21 +52,17 @@ function getCompletionItemUtility(item: CompletionItem): string | undefined {
 }
 
 export async function resolveCompletionItem(
+  factory: DocumentSessionFactory,
   item: CompletionItem,
-  generator: Promise<UnoGenerator<object>>,
 ): Promise<CompletionItem> {
   const utility = getCompletionItemUtility(item)
 
   if (!utility)
     return item
 
-  let uno: UnoGenerator<object>
-  try {
-    uno = await generator
-  }
-  catch {
+  const uno = await factory.getGenerator()
+  if (!uno)
     return item
-  }
 
   const value = await generatePrettiedCssMarkdown(uno, utility)
 

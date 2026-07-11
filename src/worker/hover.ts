@@ -1,27 +1,18 @@
-import type { UnoGenerator } from '@unocss/core'
 import type { Hover, Position } from 'vscode-languageserver-protocol'
-import type { TextDocument } from 'vscode-languageserver-textdocument'
-import { getMatchedPositionsForDocument } from './matched-positions-cache'
+import type { DocumentSession } from './document-session'
 import { generatePrettiedCssMarkdown } from './prettied-css'
 
-export async function doHover(document: TextDocument, position: Position, generator: Promise<UnoGenerator<object>>): Promise<Hover | undefined> {
+export async function doHover(session: DocumentSession, position: Position): Promise<Hover | undefined> {
+  const { document } = session
   const cursor = document.offsetAt(position)
 
-  let uno: UnoGenerator<object>
-  try {
-    uno = await generator
-  }
-  catch {
+  const uno = await session.getGenerator()
+  if (!uno)
     return undefined
-  }
 
-  let positions: Awaited<ReturnType<typeof getMatchedPositionsForDocument>>
-  try {
-    positions = await getMatchedPositionsForDocument(uno, document)
-  }
-  catch {
+  const positions = await session.getMatchedPositions()
+  if (!positions)
     return undefined
-  }
 
   const matched = positions.find(([start, end]) => cursor >= start && cursor < end)
 

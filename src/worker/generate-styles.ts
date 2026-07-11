@@ -1,8 +1,24 @@
 import type { SourceCodeTransformer, UnoGenerator } from '@unocss/core'
 import type { Content, GenerateStylesFromContentOptions } from '../types/configure'
+import type { DocumentSessionFactory } from './document-session'
 import MagicString from 'magic-string'
 
 const transformerEnforceOrder = ['pre', 'default', 'post'] as const
+
+class UnoGeneratorInitializationError extends Error {
+  override name = 'UnoGeneratorInitializationError'
+
+  constructor(cause: unknown) {
+    const message = 'Unable to generate styles because the UnoCSS generator failed to initialize'
+    const causeMessage = cause instanceof Error
+      ? cause.message
+      : typeof cause === 'string'
+        ? cause
+        : undefined
+
+    super(causeMessage ? `${message}: ${causeMessage}` : message, { cause })
+  }
+}
 
 function contentIdForExtension(extension: string | undefined): string | undefined {
   const normalized = extension?.trim().replace(/^\./, '')
@@ -53,11 +69,16 @@ async function applyTransformers(
 }
 
 export async function generateStylesFromContent(
-  generator: Promise<UnoGenerator<object>>,
+  factory: DocumentSessionFactory,
   contents: (Content | string)[],
   options?: GenerateStylesFromContentOptions,
 ): Promise<string> {
-  const uno = await generator
+  const generatorResult = await factory.getGeneratorResult()
+  if ('cause' in generatorResult) {
+    throw new UnoGeneratorInitializationError(generatorResult.cause)
+  }
+  const uno = generatorResult.generator
+
   const tokens = new Set<string>()
 
   for (const content of contents) {

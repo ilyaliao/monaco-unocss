@@ -8,7 +8,6 @@ import {
   fromCompletionContext,
   fromCompletionItem,
   fromPosition,
-  fromRange,
   toColorInformation,
   toCompletionItem,
   toCompletionList,
@@ -221,4 +220,3 @@ export function createCompletionItemProvider(
     },
   }
 }
-
