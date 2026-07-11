@@ -1,18 +1,45 @@
-import type { UnoGenerator } from 'unocss'
+import type { UnoGenerator } from '@unocss/core'
 import type { Hover, Position } from 'vscode-languageserver-protocol'
 import type { TextDocument } from 'vscode-languageserver-textdocument'
-import { searchUsageBoundary } from '@unocss/autocomplete'
+import { defaultIdeMatchExclude, defaultIdeMatchInclude } from '../vendor/defaults-ide'
+import { getMatchedPositionsFromCode } from '../vendor/match-positions'
+import { generatePrettiedCssMarkdown } from './prettied-css'
 
 export async function doHover(document: TextDocument, position: Position, generator: Promise<UnoGenerator<object>>): Promise<Hover | undefined> {
-  const content = document?.getText()
-  const cursor = document?.offsetAt(position)
+  const content = document.getText()
+  const cursor = document.offsetAt(position)
 
-  const result = await (await generator).generate(searchUsageBoundary(content, cursor)!.content, {
-    preflights: false,
-    safelist: false,
+  let uno: UnoGenerator<object>
+  try {
+    uno = await generator
+  }
+  catch {
+    return undefined
+  }
+
+  const positions = await getMatchedPositionsFromCode(uno, content, document.uri, {
+    includeRegex: defaultIdeMatchInclude,
+    excludeRegex: defaultIdeMatchExclude,
   })
+  const matched = positions.find(([start, end]) => cursor >= start && cursor < end)
+
+  if (!matched)
+    return undefined
+
+  const [start, end, text] = matched
+  const value = await generatePrettiedCssMarkdown(uno, text)
+
+  if (!value)
+    return undefined
 
   return {
-    contents: result && `\`\`\`css\n${result.css}\n\`\`\``,
+    contents: {
+      kind: 'markdown',
+      value,
+    },
+    range: {
+      start: document.positionAt(start),
+      end: document.positionAt(end),
+    },
   }
 }

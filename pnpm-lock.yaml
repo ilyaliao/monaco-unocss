@@ -11,6 +11,9 @@ importers:
       '@ctrl/tinycolor':
         specifier: ^4.1.0
         version: 4.1.0
+      magic-string:
+        specifier: ^1.0.0
+        version: 1.0.0
       monaco-editor:
         specifier: '>=0.36'
         version: 0.52.2
@@ -23,6 +26,9 @@ importers:
       monaco-worker-manager:
         specifier: ^2.0.1
         version: 2.0.1(monaco-editor@0.52.2)
+      prettier:
+        specifier: ^3.9.5
+        version: 3.9.5
       vscode-languageserver-protocol:
         specifier: ^3.17.5
         version: 3.17.5
@@ -620,8 +626,8 @@ packages:
     resolution: {integrity: sha512-R8gLRTZeyp03ymzP/6Lil/28tGeGEzhx1q2k703KGWRAI1VdvPIXdG70VJc2pAMw3NA6JKL5hhFu1sJX0Mnn/A==}
     engines: {node: '>=6.0.0'}
 
-  '@jridgewell/sourcemap-codec@1.5.0':
-    resolution: {integrity: sha512-gv3ZRaISU3fjPAgNsriBRqGWQL6quFx04YMPW/zD8XMLsU32mhCCbfbO6KZFLjvYpCZ8zyDEgqsgf+PwPaM7GQ==}
+  '@jridgewell/sourcemap-codec@1.5.5':
+    resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
 
   '@jridgewell/trace-mapping@0.3.25':
     resolution: {integrity: sha512-vNk6aEwybGtawWmy/PzwnGDOjCkLWSD2wqvjGGAgOAwCGWySYXfYoxt00IJkTF+8Lb57DwOb3Aa0o9CApepiYQ==}
@@ -1868,8 +1874,11 @@ packages:
     resolution: {integrity: sha512-QIXZUBJUx+2zHUdQujWejBkcD9+cs94tLn0+YL8UrCh+D5sCXZ4c7LaEH48pNwRY3MLDgqUFyhlCyjJPf1WP0A==}
     engines: {node: 20 || >=22}
 
-  magic-string@0.30.17:
-    resolution: {integrity: sha512-sNPKHvyjVf7gyjwS4xGTaW/mCnF8wnjtifKBEhxfZ7E/S8tQ0rssrwGNn6q8JH/ohItJfSQp9mBtQYuTlH5QnA==}
+  magic-string@0.30.21:
+    resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
+
+  magic-string@1.0.0:
+    resolution: {integrity: sha512-CGvjzMN08iv6w1mm4/x3Gh1hLb4VnyRUA15FFpl6CsCIGGoe36k7kY5KNz9QDbSBN5I/fWHM6ZlIkUTa5xdUEA==}
 
   markdown-table@3.0.4:
     resolution: {integrity: sha512-wiYz4+JrLyb/DqW2hkFJxP7Vd7JuTDm77fvbM8VfEQdmSMqcImWeeRbHwZjBjIFki/VaMK2BhFi7oUUZeM5bqw==}
@@ -2183,6 +2192,11 @@ packages:
   prelude-ls@1.2.1:
     resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==}
     engines: {node: '>= 0.8.0'}
+
+  prettier@3.9.5:
+    resolution: {integrity: sha512-/FVl766LpUfB5vXgCYOYa0MeV/441Ia99AeICQIQFTY/Nw0roZwULcXpku5i1/m5kt/baz+s4Zogspd839HSMg==}
+    engines: {node: '>=14'}
+    hasBin: true
 
   punycode@2.3.1:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
@@ -3039,19 +3053,19 @@ snapshots:
   '@jridgewell/gen-mapping@0.3.5':
     dependencies:
       '@jridgewell/set-array': 1.2.1
-      '@jridgewell/sourcemap-codec': 1.5.0
+      '@jridgewell/sourcemap-codec': 1.5.5
       '@jridgewell/trace-mapping': 0.3.25
 
   '@jridgewell/resolve-uri@3.1.2': {}
 
   '@jridgewell/set-array@1.2.1': {}
 
-  '@jridgewell/sourcemap-codec@1.5.0': {}
+  '@jridgewell/sourcemap-codec@1.5.5': {}
 
   '@jridgewell/trace-mapping@0.3.25':
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
-      '@jridgewell/sourcemap-codec': 1.5.0
+      '@jridgewell/sourcemap-codec': 1.5.5
 
   '@napi-rs/wasm-runtime@0.2.11':
     dependencies:
@@ -3346,7 +3360,7 @@ snapshots:
       chokidar: 3.6.0
       colorette: 2.0.20
       consola: 3.4.2
-      magic-string: 0.30.17
+      magic-string: 0.30.21
       pathe: 2.0.3
       perfect-debounce: 1.0.0
       tinyglobby: 0.2.14
@@ -3443,7 +3457,7 @@ snapshots:
   '@unocss/rule-utils@66.2.0':
     dependencies:
       '@unocss/core': 66.2.0
-      magic-string: 0.30.17
+      magic-string: 0.30.21
 
   '@unocss/transformer-attributify-jsx@66.2.0':
     dependencies:
@@ -3470,7 +3484,7 @@ snapshots:
       '@unocss/core': 66.2.0
       '@unocss/inspector': 66.2.0(vue@3.5.13(typescript@5.8.3))
       chokidar: 3.6.0
-      magic-string: 0.30.17
+      magic-string: 0.30.21
       pathe: 2.0.3
       tinyglobby: 0.2.14
       unplugin-utils: 0.2.4
@@ -3500,7 +3514,7 @@ snapshots:
     dependencies:
       '@vitest/spy': 3.2.3
       estree-walker: 3.0.3
-      magic-string: 0.30.17
+      magic-string: 0.30.21
     optionalDependencies:
       vite: 6.3.5(@types/node@24.0.1)(jiti@2.4.2)(tsx@4.19.2)(yaml@2.8.0)
 
@@ -3517,7 +3531,7 @@ snapshots:
   '@vitest/snapshot@3.2.3':
     dependencies:
       '@vitest/pretty-format': 3.2.3
-      magic-string: 0.30.17
+      magic-string: 0.30.21
       pathe: 2.0.3
 
   '@vitest/spy@3.2.3':
@@ -3551,7 +3565,7 @@ snapshots:
       '@vue/compiler-ssr': 3.5.13
       '@vue/shared': 3.5.13
       estree-walker: 2.0.2
-      magic-string: 0.30.17
+      magic-string: 0.30.21
       postcss: 8.5.5
       source-map-js: 1.2.1
 
@@ -4434,9 +4448,13 @@ snapshots:
 
   lru-cache@11.1.0: {}
 
-  magic-string@0.30.17:
+  magic-string@0.30.21:
     dependencies:
-      '@jridgewell/sourcemap-codec': 1.5.0
+      '@jridgewell/sourcemap-codec': 1.5.5
+
+  magic-string@1.0.0:
+    dependencies:
+      '@jridgewell/sourcemap-codec': 1.5.5
 
   markdown-table@3.0.4: {}
 
@@ -4917,6 +4935,8 @@ snapshots:
 
   prelude-ls@1.2.1: {}
 
+  prettier@3.9.5: {}
+
   punycode@2.3.1: {}
 
   quansync@0.2.10: {}
@@ -5312,7 +5332,7 @@ snapshots:
       chai: 5.2.0
       debug: 4.4.1
       expect-type: 1.2.1
-      magic-string: 0.30.17
+      magic-string: 0.30.21
       pathe: 2.0.3
       picomatch: 4.0.2
       std-env: 3.9.0
