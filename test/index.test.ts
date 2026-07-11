@@ -1,15 +1,29 @@
 import type { UnoGenerator } from '@unocss/core'
+import type { Color } from 'vscode-languageserver-protocol'
 import { createAutocomplete } from '@unocss/autocomplete'
 import { createGenerator } from '@unocss/core'
-import { presetAttributify, presetWind3 } from 'unocss'
-import { describe, expect, it } from 'vitest'
+import { presetAttributify, presetWind3, presetWind4 } from 'unocss'
+import { beforeEach, describe, expect, it } from 'vitest'
 import { Range } from 'vscode-languageserver-protocol'
 import { TextDocument } from 'vscode-languageserver-textdocument'
+import { getDocumentColors } from '../src/worker/colors'
 import { doComplete, resolveCompletionItem } from '../src/worker/complete'
 import { doHover } from '../src/worker/hover'
+import { clearAllMatchedPositionsCache, getMatchedPositionsForDocument } from '../src/worker/matched-positions-cache'
 
-function createDocument(source: string): TextDocument {
-  return TextDocument.create('file:///fixture.html', 'html', 0, source)
+let fixtureIndex = 0
+
+beforeEach(() => {
+  clearAllMatchedPositionsCache()
+})
+
+function createDocument(source: string, options: { uri?: string, version?: number } = {}): TextDocument {
+  return TextDocument.create(
+    options.uri ?? `file:///fixture-${fixtureIndex++}.html`,
+    'html',
+    options.version ?? 0,
+    source,
+  )
 }
 
 function positionInside(document: TextDocument, source: string, needle: string) {
@@ -39,13 +53,20 @@ function rangeFor(document: TextDocument, source: string, needle: string) {
   )
 }
 
-function createUno({ attributify = false } = {}): Promise<UnoGenerator> {
+function createUno({ attributify = false, wind = 'wind3' }: { attributify?: boolean, wind?: 'wind3' | 'wind4' } = {}): Promise<UnoGenerator> {
   return createGenerator({
     presets: [
-      presetWind3(),
+      wind === 'wind4' ? presetWind4() : presetWind3(),
       ...(attributify ? [presetAttributify()] : []),
     ],
   })
+}
+
+function expectColor(color: Color, expected: { alpha: number, blue: number, green: number, red: number }) {
+  expect(color.red).toBeCloseTo(expected.red / 255, 5)
+  expect(color.green).toBeCloseTo(expected.green / 255, 5)
+  expect(color.blue).toBeCloseTo(expected.blue / 255, 5)
+  expect(color.alpha).toBeCloseTo(expected.alpha, 5)
 }
 
 function getTextEditRange(item: NonNullable<Awaited<ReturnType<typeof doComplete>>>['items'][number]) {
@@ -161,6 +182,148 @@ describe('doHover', () => {
     expect(hover?.contents).toMatchObject({
       value: expect.stringContaining('[text-red-5=""]'),
     })
+  })
+})
+
+describe('getDocumentColors', () => {
+  it('reports a theme color utility at its matched range', async () => {
+    const source = '<div class="text-red-5"></div>'
+    const document = createDocument(source)
+
+    const colors = await getDocumentColors(document, createUno())
+
+    expect(colors).toHaveLength(1)
+    expect(colors?.[0].range).toEqual(rangeFor(document, source, 'text-red-5'))
+    expectColor(colors![0].color, { red: 239, green: 68, blue: 68, alpha: 1 })
+  })
+
+  it('reports an arbitrary-value color utility', async () => {
+    const source = '<div class="bg-[#ff8888]"></div>'
+    const document = createDocument(source)
+
+    const colors = await getDocumentColors(document, createUno())
+
+    expect(colors).toHaveLength(1)
+    expect(colors?.[0].range).toEqual(rangeFor(document, source, 'bg-[#ff8888]'))
+    expectColor(colors![0].color, { red: 255, green: 136, blue: 136, alpha: 1 })
+  })
+
+  it('reports an arbitrary named-color utility', async () => {
+    const source = '<div class="bg-[hotpink]"></div>'
+    const document = createDocument(source)
+
+    const colors = await getDocumentColors(document, createUno())
+
+    expect(colors).toHaveLength(1)
+    expect(colors?.[0].range).toEqual(rangeFor(document, source, 'bg-[hotpink]'))
+    expectColor(colors![0].color, { red: 255, green: 105, blue: 180, alpha: 1 })
+  })
+
+  it('reports a wind4 arbitrary named-color utility instead of transparent preflight colors', async () => {
+    const source = '<div class="text-[hotpink]"></div>'
+    const document = createDocument(source)
+
+    const colors = await getDocumentColors(document, createUno({ wind: 'wind4' }))
+
+    expect(colors).toHaveLength(1)
+    expect(colors?.[0].range).toEqual(rangeFor(document, source, 'text-[hotpink]'))
+    // Empirically, presetWind4 emits the default text opacity as 100%.
+    expectColor(colors![0].color, { red: 255, green: 105, blue: 180, alpha: 1 })
+  })
+
+  it('skips transparent named-color utilities', async () => {
+    const source = '<div class="bg-transparent"></div>'
+    const document = createDocument(source)
+
+    await expect(getDocumentColors(document, createUno())).resolves.toEqual([])
+  })
+
+  it('reports opacity from the generated CSS color', async () => {
+    const source = '<div class="text-red-5/50"></div>'
+    const document = createDocument(source)
+
+    const colors = await getDocumentColors(document, createUno())
+
+    expect(colors).toHaveLength(1)
+    expect(colors?.[0].range).toEqual(rangeFor(document, source, 'text-red-5/50'))
+    expectColor(colors![0].color, { red: 239, green: 68, blue: 68, alpha: 0.5 })
+  })
+
+  it('reports wind4 color-mix opacity from an oklch theme color', async () => {
+    const source = '<div class="text-red-500/50"></div>'
+    const document = createDocument(source)
+
+    const colors = await getDocumentColors(document, createUno({ wind: 'wind4' }))
+
+    expect(colors).toHaveLength(1)
+    expect(colors?.[0].range).toEqual(rangeFor(document, source, 'text-red-500/50'))
+    expectColor(colors![0].color, { red: 251, green: 44, blue: 54, alpha: 0.5 })
+  })
+
+  it('reports a variant color utility', async () => {
+    const source = '<div class="dark:text-red-5"></div>'
+    const document = createDocument(source)
+
+    const colors = await getDocumentColors(document, createUno())
+
+    expect(colors).toHaveLength(1)
+    expect(colors?.[0].range).toEqual(rangeFor(document, source, 'dark:text-red-5'))
+    expectColor(colors![0].color, { red: 239, green: 68, blue: 68, alpha: 1 })
+  })
+
+  it('skips non-color utilities', async () => {
+    const source = '<div class="mt-4 flex"></div>'
+    const document = createDocument(source)
+
+    await expect(getDocumentColors(document, createUno())).resolves.toEqual([])
+  })
+
+  it('reports an attributify color at the attribute-form matched position', async () => {
+    const source = '<div text="red-5"></div>'
+    const document = createDocument(source)
+
+    const colors = await getDocumentColors(document, createUno({ attributify: true }))
+
+    expect(colors).toHaveLength(1)
+    expect(colors?.[0].range).toEqual(rangeFor(document, source, 'red-5'))
+    expectColor(colors![0].color, { red: 239, green: 68, blue: 68, alpha: 1 })
+  })
+})
+
+describe('matched positions cache', () => {
+  it('reuses positions for the same uri and document version', async () => {
+    const source = '<div class="text-red-5"></div>'
+    const uri = 'file:///cache-fixture.html'
+    const document = createDocument(source, { uri, version: 1 })
+    const uno = await createUno()
+
+    const first = await getMatchedPositionsForDocument(uno, document)
+    const second = await getMatchedPositionsForDocument(uno, document)
+    const nextVersion = await getMatchedPositionsForDocument(
+      uno,
+      createDocument(source, { uri, version: 2 }),
+    )
+
+    expect(second).toBe(first)
+    expect(nextVersion).not.toBe(first)
+    expect(nextVersion).toEqual(first)
+  })
+
+  it('does not reuse positions when a model is recreated at the same uri and version', async () => {
+    const uri = 'file:///cache-recreated-fixture.html'
+    const uno = await createUno()
+
+    const first = await getMatchedPositionsForDocument(
+      uno,
+      createDocument('<div class="text-red-5"></div>', { uri, version: 1 }),
+    )
+    const recreated = await getMatchedPositionsForDocument(
+      uno,
+      createDocument('<div class="bg-blue-5"></div>', { uri, version: 1 }),
+    )
+
+    expect(recreated).not.toBe(first)
+    expect(recreated.map(([, , className]) => className)).toEqual(['bg-blue-5'])
   })
 })
 

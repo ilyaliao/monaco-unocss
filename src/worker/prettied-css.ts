@@ -1,6 +1,7 @@
 import type { UnoGenerator } from '@unocss/core'
 import parserPostcss from 'prettier/plugins/postcss'
 import { format } from 'prettier/standalone'
+import { getCSS } from '../vendor/css'
 
 async function formatCssAsMarkdown(css: string): Promise<string> {
   const formattedCss = (await format(css, {
@@ -18,18 +19,12 @@ export async function generatePrettiedCssMarkdown(
   const isAttributify = uno.config.presets.some(p => p.name === '@unocss/preset-attributify')
 
   try {
-    const result = await uno.generate(
-      new Set(isAttributify ? [utility, `[${utility}=""]`] : [utility]),
-      {
-        preflights: false,
-        safelist: false,
-      },
-    )
+    const css = await getCSS(uno, isAttributify ? [utility, `[${utility}=""]`] : utility)
 
-    if (!result.css.trim())
+    if (!css.trim())
       return undefined
 
-    return await formatCssAsMarkdown(result.css)
+    return await formatCssAsMarkdown(css)
   }
   catch {
     return undefined

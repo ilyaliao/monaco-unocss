@@ -5,8 +5,10 @@ import { createAutocomplete } from '@unocss/autocomplete'
 import { createGenerator } from '@unocss/core'
 import { initialize as initializeWorker } from 'monaco-worker-manager/worker'
 import { TextDocument } from 'vscode-languageserver-textdocument'
+import { getDocumentColors as getDocumentColorsForDocument } from './worker/colors'
 import { doComplete, resolveCompletionItem } from './worker/complete'
 import { doHover } from './worker/hover'
+import { pruneMatchedPositionsCache } from './worker/matched-positions-cache'
 
 async function generatorConfig(configPromise: PromiseLike<UserConfig> | UserConfig, defaultConfig: UserConfigDefaults): Promise<UnoGenerator<object>> {
   const preparedUnocssConfig = await configPromise
@@ -34,16 +36,18 @@ export function initialize(unocssWorkerOptions?: UnocssWorkerOptions): void {
 
     const withDocument
       = <A extends unknown[], R>(
-        fn: (document: TextDocument, ...args: A) => any,
+        fn: (document: TextDocument, ...args: A) => R | Promise<R>,
       ) =>
-        (uri: string, languageId: string, ...args: A): Promise<R> | undefined => {
+        async (uri: string, languageId: string, ...args: A): Promise<Awaited<R> | undefined> => {
           const models = ctx.getMirrorModels()
+          pruneMatchedPositionsCache(models.map(model => String(model.uri)))
           for (const model of models) {
             if (String(model.uri) === uri) {
-              return fn(
+              const result = await fn(
                 TextDocument.create(uri, languageId, model.version, model.getValue()),
                 ...args,
               )
+              return result
             }
           }
         }
@@ -59,7 +63,7 @@ export function initialize(unocssWorkerOptions?: UnocssWorkerOptions): void {
         return ''
       },
 
-      getDocumentColors: withDocument(() => undefined),
+      getDocumentColors: withDocument(document => getDocumentColorsForDocument(document, __uno)),
 
       async resolveCompletionItem(item) {
         return resolveCompletionItem(item, __uno)

@@ -1,6 +1,6 @@
 import type { editor, languages, MonacoEditor } from 'monaco-types'
 import type { WorkerGetter } from 'monaco-worker-manager'
-import type { ColorInformation, CompletionItem as LspCompletionItem } from 'vscode-languageserver-protocol'
+import type { CompletionItem as LspCompletionItem } from 'vscode-languageserver-protocol'
 
 import type { UnocssWorker } from './types/worker'
 import { fromRatio, names as namedColors } from '@ctrl/tinycolor'
@@ -17,9 +17,10 @@ import {
 type WorkerAccessor = WorkerGetter<UnocssWorker>
 type CompletionItemWithData = languages.CompletionItem & { data?: unknown }
 
-const colorNames = Object.values(namedColors)
+const colorNames = Object.keys(namedColors)
 const editableColorRegex = new RegExp(
-  `-\\[(${colorNames.join('|')}|((?:#|rgba?\\(|hsla?\\())[^\\]]+)\\]$`,
+  `-\\[(${colorNames.join('|')}|(?:(?:#|rgba?\\(|hsla?\\())[^\\]]+)\\]$`,
+  'i',
 )
 const sheet = new CSSStyleSheet()
 document.adoptedStyleSheets.push(sheet)
@@ -79,8 +80,7 @@ export function createColorProvider(
 
       const editableColors: languages.IColorInformation[] = []
       const nonEditableColors: editor.IModelDeltaDecoration[] = []
-      // TODO: wait implementation of getDocumentColors in worker
-      const colors: ColorInformation[] = await worker.getDocumentColors(String(model.uri), model.getLanguageId())
+      const colors = await worker.getDocumentColors(String(model.uri), model.getLanguageId())
       if (colors) {
         for (const lsColor of Array.from(colors)) {
           const monacoColor = toColorInformation(lsColor)
@@ -110,18 +110,15 @@ export function createColorProvider(
 
     provideColorPresentations(model, colorInformation) {
       const className = model.getValueInRange(colorInformation.range)
-      const match = new RegExp(
-        `-\\[(${colorNames.join('|')}|(?:(?:#|rgba?\\(|hsla?\\())[^\\]]+)\\]$`,
-        'i',
-      ).exec(className)
+      const match = editableColorRegex.exec(className)
 
       if (!match) {
         return []
       }
 
-      const [currentColor] = match
+      const [, currentColor] = match
 
-      const isNamedColor = colorNames.includes(currentColor)
+      const isNamedColor = colorNames.includes(currentColor.toLowerCase())
       const color = fromRatio({
         r: colorInformation.color.red,
         g: colorInformation.color.green,

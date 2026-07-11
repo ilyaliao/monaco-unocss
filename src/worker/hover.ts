@@ -1,12 +1,10 @@
 import type { UnoGenerator } from '@unocss/core'
 import type { Hover, Position } from 'vscode-languageserver-protocol'
 import type { TextDocument } from 'vscode-languageserver-textdocument'
-import { defaultIdeMatchExclude, defaultIdeMatchInclude } from '../vendor/defaults-ide'
-import { getMatchedPositionsFromCode } from '../vendor/match-positions'
+import { getMatchedPositionsForDocument } from './matched-positions-cache'
 import { generatePrettiedCssMarkdown } from './prettied-css'
 
 export async function doHover(document: TextDocument, position: Position, generator: Promise<UnoGenerator<object>>): Promise<Hover | undefined> {
-  const content = document.getText()
   const cursor = document.offsetAt(position)
 
   let uno: UnoGenerator<object>
@@ -17,10 +15,14 @@ export async function doHover(document: TextDocument, position: Position, genera
     return undefined
   }
 
-  const positions = await getMatchedPositionsFromCode(uno, content, document.uri, {
-    includeRegex: defaultIdeMatchInclude,
-    excludeRegex: defaultIdeMatchExclude,
-  })
+  let positions: Awaited<ReturnType<typeof getMatchedPositionsForDocument>>
+  try {
+    positions = await getMatchedPositionsForDocument(uno, document)
+  }
+  catch {
+    return undefined
+  }
+
   const matched = positions.find(([start, end]) => cursor >= start && cursor < end)
 
   if (!matched)

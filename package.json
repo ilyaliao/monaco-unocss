@@ -50,6 +50,7 @@
     "monaco-editor": ">=0.36"
   },
   "dependencies": {
+    "@colordx/core": "^5.5.0",
     "@ctrl/tinycolor": "^4.1.0",
     "magic-string": "^1.0.0",
     "monaco-languageserver-types": "^0.4.0",
