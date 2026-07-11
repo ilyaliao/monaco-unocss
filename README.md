@@ -34,7 +34,7 @@ UnoCSS IntelliSense for the [Monaco editor](https://microsoft.github.io/monaco-e
 ## Install
 
 ```bash
-pnpm add monaco-unocss unocss @unocss/core @unocss/autocomplete
+pnpm add monaco-unocss monaco-editor unocss @unocss/core @unocss/autocomplete
 ```
 
 ## Usage
@@ -75,7 +75,7 @@ window.MonacoEnvironment = {
   },
 }
 
-configureMonacoUnocss(monaco)
+const integration = configureMonacoUnocss(monaco)
 ```
 
 Configure UnoCSS in the worker:
@@ -87,15 +87,59 @@ import { presetAttributify } from 'unocss/preset-attributify'
 import { presetWind3 } from 'unocss/preset-wind3'
 
 initialize({
-  prepareUnocssConfig() {
+  prepareUnocssConfig(unocssConfig) {
+    if (typeof unocssConfig === 'string')
+      throw new TypeError('This worker only accepts object config overrides')
+
     return {
-      presets: [presetWind3(), presetAttributify()],
+      ...unocssConfig,
+      presets: [presetWind3(), presetAttributify(), ...(unocssConfig?.presets ?? [])],
     }
   },
 })
 ```
 
 UnoCSS config lives in the worker because presets, rules, and shortcuts can be functions.
+
+### Integration API
+
+`configureMonacoUnocss()` returns one integration object with this shape:
+
+```ts
+import type { UnocssConfig } from 'monaco-unocss'
+
+interface Integration {
+  dispose: () => void
+  setUnocssConfig: (unocssConfig: UnocssConfig) => Promise<void>
+  generateStylesFromContent: (
+    contents: Array<string | { content: string, extension?: string }>,
+    options?: {
+      preflights?: boolean
+      safelist?: boolean
+      minify?: boolean
+    },
+  ) => Promise<string>
+}
+```
+
+Use the returned integration:
+
+```ts
+await integration.setUnocssConfig({
+  shortcuts: { btn: 'px-6 py-3' },
+})
+
+const css = await integration.generateStylesFromContent(
+  [
+    '<div class="btn text-red-5"></div>',
+    { content: '<template><div class="grid" /></template>', extension: 'vue' },
+  ],
+  { minify: true },
+)
+```
+
+Call `integration.dispose()` when the integration is no longer needed. This releases the worker
+and every registered Monaco provider.
 
 To replace a config at runtime, define a source format and interpret it in the worker hook. This
 example accepts an `export default` prefix followed by a JSON object. Replace the worker
@@ -148,10 +192,6 @@ await integration.setUnocssConfig(
   'export default {"shortcuts":{"btn":"px-6 py-3"}}',
 )
 ```
-
-`monaco-unocss` passes config strings through unchanged; it does not evaluate them. The
-integrator's `prepareUnocssConfig` hook must parse or evaluate the string and return a valid UnoCSS
-config object. Without that hook, the worker rejects string configs.
 
 ## Options
 

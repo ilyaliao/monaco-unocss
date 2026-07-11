@@ -48,11 +48,13 @@ UnoCSS config can contain functions, presets, rules, shortcuts, and extractors. 
 - `src/worker/document-session.ts`: document resolution, lazy UnoCSS dependencies, and matched-position cache lifecycle.
 - `src/worker/complete.ts`: utility completion and completion item resolution.
 - `src/worker/hover.ts`: hover markdown for matched utilities.
-- `src/worker/validate.ts`: diagnostics for CSS conflicts and blocklisted utilities.
-- `src/worker/code-actions.ts`: quick fixes for supported diagnostics.
 - `src/worker/colors.ts`: document color extraction.
 - `src/worker/generate-styles.ts`: CSS generation from arbitrary content.
 - `src/worker/prettied-css.ts`: generated CSS formatting for hover and completion docs.
+- `src/worker/document-feature-result.ts`: wraps document-level features so failures stay distinct from empty results.
+- `src/worker/source-transformers.ts`: minimal plugin context that runs config transformers for style generation.
+- `src/worker/utility-candidates.ts`: expands a matched utility into the candidates to generate CSS for.
+- `src/worker/presets.ts`: preset presence checks on a generator config.
 
 ## Public types
 
@@ -71,17 +73,6 @@ Keep these files aligned with `src/index.ts`, `src/unocss.worker.ts`, tests, and
 - `mdx`
 - `typescript`
 
-A single marker data provider is registered for the string items of the language selector. Monaco has no general matcher for all `languages.LanguageSelector` shapes here. `setUnocssConfig()` disposes the worker and revalidates that provider so markers refresh without a document edit.
-
-## Diagnostics
-
-Diagnostics are worker-side and come from `src/worker/validate.ts`.
-
-- `cssConflict`: reports utilities in the same class list that generate the same CSS properties.
-- `blocklist`: reports utilities blocked by UnoCSS blocklist rules.
-
-Both are enabled by default and can be disabled through `diagnostics`.
-
 ## Data flow
 
 ```mermaid
@@ -95,7 +86,7 @@ sequenceDiagram
   participant Session as Document Session
   participant Uno as UnoCSS generator
 
-  Monaco->>Adapter: completion / hover / colors / markers
+  Monaco->>Adapter: completion / hover / colors
   Adapter->>MonacoWorker: get worker for model URI
   MonacoWorker->>Worker: RPC call with URI and language id
   Worker->>Factory: resolveDocument(uri, languageId)
@@ -107,8 +98,8 @@ sequenceDiagram
   Uno-->>Session: generated CSS and metadata
   Session-->>Feature: dependency result or undefined
   Feature-->>Worker: LSP-style result or undefined
-  Worker-->>Adapter: direct result, or WorkerFeatureResult for colors / markers
-  Adapter->>Adapter: preserve, clear, or update colors / markers
+  Worker-->>Adapter: direct result, or WorkerFeatureResult for colors
+  Adapter->>Adapter: preserve, clear, or update colors
   Adapter-->>Monaco: Monaco result
 ```
 
@@ -116,14 +107,23 @@ sequenceDiagram
 
 Vendored or adapted logic lives under `src/vendor/*`.
 
+- `constants.ts`
 - `defaults-ide.ts`
 - `extractor-arbitrary-variants.ts`
 - `match-positions.ts`
-- `source-transformers.ts`
 - `color.ts`
 - `css.ts`
 
 Keep upstream attribution intact when touching these files. Avoid mixing copied upstream code directly into `src/worker/*`.
+
+### Upstream alignment policy
+
+This project provides Monaco support; observable behavior should follow upstream UnoCSS.
+
+- Vendored files mirror the upstream commit pinned in their attribution header. Do not land improvements or fixes in `src/vendor/*` directly.
+- If vendored logic has a defect, treat it as an upstream defect: report it so the maintainer can fix it in UnoCSS, then re-vendor. Do not fork the behavior locally by default.
+- Any deliberate behavior difference from upstream requires explicit consideration and must be recorded in the divergence ledger (`.scratch/upstream-realignment/`), including its motivation and upstream status.
+- Monaco-specific needs belong in non-vendored modules layered on top of the vendored mirror, not inside it.
 
 ## Tests
 
@@ -148,8 +148,8 @@ Use the package manager pinned by `packageManager` in `package.json`.
 pnpm settings and workspace globs live in `pnpm-workspace.yaml`.
 
 - `pnpm build`: build the library with `tsdown`.
-- `pnpm test`: run Vitest.
-- `pnpm typecheck`: run `tsc --noEmit`.
+- `pnpm test`: build the library, then run Vitest.
+- `pnpm typecheck`: type-check the playground and repository sources.
 - `pnpm lint`: run ESLint.
 - `pnpm play`: run the interactive playground.
 

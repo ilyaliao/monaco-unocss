@@ -1,12 +1,11 @@
 import type { UserConfig } from '@unocss/core'
 // @env node
-import type { Color, Diagnostic, Hover, Position, TextEdit } from 'vscode-languageserver-protocol'
+import type { Color, Hover, Position } from 'vscode-languageserver-protocol'
 import type { TextDocument } from 'vscode-languageserver-textdocument'
-import type { DocumentSession } from '../src/worker/document-session'
 import transformerVariantGroup from '@unocss/transformer-variant-group'
 import { presetAttributify, presetWind3, presetWind4 } from 'unocss'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { DiagnosticSeverity, Range } from 'vscode-languageserver-protocol'
+import { Range } from 'vscode-languageserver-protocol'
 import * as colorUtilities from '../src/vendor/color'
 import { getDocumentColors } from '../src/worker/colors'
 import { doComplete, resolveCompletionItem } from '../src/worker/complete'
@@ -697,9 +696,8 @@ describe('document session failures', () => {
     await expect(Promise.all([
       doHover(session, positionInside(document, source, 'mt-2')),
       getDocumentColors(session),
-      doValidate(session),
       doComplete(session, positionAfter(document, source, 'bg-red-')),
-    ])).resolves.toEqual([undefined, undefined, undefined, undefined])
+    ])).resolves.toEqual([undefined, undefined, undefined])
   })
 
   it('returns undefined when autocomplete initialization fails', async () => {
@@ -733,8 +731,7 @@ describe('document session failures', () => {
     await expect(Promise.all([
       doHover(session, positionInside(document, source, 'text-red-5')),
       getDocumentColors(session),
-      doValidate(session),
-    ])).resolves.toEqual([undefined, undefined, undefined])
+    ])).resolves.toEqual([undefined, undefined])
   })
 
   it('retries matched-position computation from a later session after failure', async () => {
@@ -792,49 +789,6 @@ describe('document session failures', () => {
     )
 
     expect(list?.items.some(item => item.label === 'bg-red-5')).toBe(true)
-  })
-
-  it('propagates feature errors after session dependencies resolve', async () => {
-    const source = '<div class="marker"></div>'
-    const markerOffset = source.indexOf('marker')
-    const { session } = createTestSession(source, {
-      rules: [[/^explode$/, () => {
-        throw new Error('feature exploded')
-      }]],
-      transformers: [{
-        name: 'feature-error-annotation',
-        transform() {
-          return {
-            highlightAnnotations: [{
-              className: 'explode',
-              length: 'marker'.length,
-              offset: markerOffset,
-            }],
-          }
-        },
-      }],
-    })
-
-    await expect(doValidate(session)).rejects.toThrow('feature exploded')
-  })
-
-  it('keeps document-only code actions available when generator initialization fails', () => {
-    const source = '<div class="float-left"></div>'
-    const { document, session } = createTestSession(source, {}, {
-      unocssConfig: createFailingUnoConfig(),
-    })
-    const diagnostic: Diagnostic = {
-      code: 'blocklist',
-      message: 'blocked',
-      range: rangeFor(document, source, 'float-left'),
-      source: 'unocss',
-    }
-
-    const actions = doCodeActions(session, diagnostic.range, {
-      diagnostics: [diagnostic],
-    })
-
-    expect(actions?.[0].title).toBe('Remove \'float-left\'')
   })
 })
 
