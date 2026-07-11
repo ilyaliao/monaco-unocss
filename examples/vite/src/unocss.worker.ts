@@ -1,14 +1,14 @@
+// @env worker
+import transformerVariantGroup from '@unocss/transformer-variant-group'
 import { initialize } from 'monaco-unocss/unocss.worker'
-import {
-  presetAttributify,
-  presetIcons,
-  presetTypography,
-  presetUno,
-  presetWebFonts,
-} from 'unocss'
+import { presetAttributify } from 'unocss/preset-attributify'
+import { presetIcons } from 'unocss/preset-icons'
+import { presetTypography } from 'unocss/preset-typography'
+import { presetWebFonts } from 'unocss/preset-web-fonts'
+import { presetWind3 } from 'unocss/preset-wind3'
 
 initialize({
-  prepareUnocssConfig(_unocssConfig) {
+  prepareUnocssConfig(unocssConfig) {
     return {
       shortcuts: [
         {
@@ -23,7 +23,7 @@ initialize({
         },
       ],
       presets: [
-        presetUno(),
+        presetWind3(),
         presetAttributify(),
         presetTypography(),
         presetIcons({
@@ -36,6 +36,10 @@ initialize({
           },
         }),
       ],
+      transformers: [
+        transformerVariantGroup(),
+      ],
+      ...unocssConfig,
     }
   },
 })

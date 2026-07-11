@@ -100,6 +100,9 @@ importers:
         specifier: workspace:*
         version: link:../..
     devDependencies:
+      '@unocss/transformer-variant-group':
+        specifier: ^66.3.1
+        version: 66.3.1
       monaco-editor:
         specifier: ^0.52.2
         version: 0.52.2
