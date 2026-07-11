@@ -26,20 +26,18 @@
   ],
   "sideEffects": false,
   "exports": {
-    ".": {
-      "types": "./dist/index.d.mts",
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.cjs"
-    },
-    "./unocss.worker": {
-      "types": "./dist/unocss.worker.d.mts",
-      "import": "./dist/unocss.worker.mjs",
-      "require": "./dist/unocss.worker.cjs"
+    ".": "./dist/index.mjs",
+    "./unocss.worker": "./dist/unocss.worker.mjs",
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.d.mts",
+  "typesVersions": {
+    "*": {
+      "unocss.worker": [
+        "./dist/unocss.worker.d.mts"
+      ]
     }
   },
-  "main": "./dist/index.cjs",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.mts",
   "files": [
     "dist"
   ],
@@ -51,11 +49,10 @@
     "watch": "tsdown --watch",
     "play": "nr -C examples/vite dev",
     "lint": "eslint .",
-    "prepublishOnly": "nr build",
+    "prepack": "pnpm build",
     "release": "bumpp -r",
-    "start": "esno src/index.ts",
-    "test": "vitest",
-    "typecheck": "tsc --noEmit",
+    "test": "pnpm build && vitest",
+    "typecheck": "pnpm build && tsc --noEmit",
     "prepare": "simple-git-hooks"
   },
   "peerDependencies": {
@@ -64,35 +61,35 @@
     "monaco-editor": ">=0.55.1"
   },
   "dependencies": {
-    "@colordx/core": "^5.5.0",
-    "@ctrl/tinycolor": "^4.2.0",
-    "magic-string": "^1.0.0",
-    "monaco-languageserver-types": "^0.4.1",
-    "monaco-types": "^0.1.2",
-    "monaco-worker-manager": "^2.0.1",
-    "prettier": "^3.9.5",
-    "vscode-languageserver-protocol": "^3.18.2",
-    "vscode-languageserver-textdocument": "^1.0.12"
+    "@colordx/core": "catalog:prod",
+    "@ctrl/tinycolor": "catalog:prod",
+    "magic-string": "catalog:prod",
+    "monaco-languageserver-types": "catalog:prod",
+    "monaco-types": "catalog:prod",
+    "monaco-worker-manager": "catalog:prod",
+    "prettier": "catalog:prod",
+    "vscode-languageserver-protocol": "catalog:prod",
+    "vscode-languageserver-textdocument": "catalog:prod"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^9.1.0",
-    "@antfu/ni": "^30.2.0",
-    "@antfu/utils": "^9.3.0",
-    "@types/node": "^26.1.0",
-    "@unocss/autocomplete": "^66.7.5",
-    "@unocss/core": "^66.7.5",
-    "@unocss/transformer-variant-group": "^66.7.5",
-    "bumpp": "^11.1.0",
-    "eslint": "^10.6.0",
-    "esno": "^4.8.0",
-    "lint-staged": "^17.0.8",
-    "pnpm": "^11.10.0",
-    "simple-git-hooks": "^2.13.1",
-    "tsdown": "^0.22.3",
-    "typescript": "^6.0.3",
-    "unocss": "^66.7.5",
-    "vite": "^6.3.5",
-    "vitest": "^4.1.10"
+    "@antfu/eslint-config": "catalog:dev",
+    "@antfu/ni": "catalog:dev",
+    "@types/node": "catalog:dev",
+    "@unocss/autocomplete": "catalog:inlined",
+    "@unocss/core": "catalog:inlined",
+    "@unocss/transformer-variant-group": "catalog:inlined",
+    "bumpp": "catalog:dev",
+    "eslint": "catalog:dev",
+    "lint-staged": "catalog:dev",
+    "pnpm": "catalog:dev",
+    "simple-git-hooks": "catalog:dev",
+    "tsdown": "catalog:dev",
+    "tsdown-stale-guard": "catalog:dev",
+    "tsnapi": "catalog:dev",
+    "typescript": "catalog:dev",
+    "unocss": "catalog:inlined",
+    "vite": "catalog:frontend",
+    "vitest": "catalog:dev"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged"

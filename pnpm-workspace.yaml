@@ -1,3 +1,6 @@
+catalogMode: strict
+cleanupUnusedCatalogs: true
+
 ignoreWorkspaceRootCheck: true
 minimumReleaseAgeExclude:
   - '@typescript-eslint/*'
@@ -23,3 +26,39 @@ packages:
   - playground
   - docs
   - examples/*
+catalogs:
+  dev:
+    '@antfu/eslint-config': ^9.1.0
+    '@antfu/ni': ^30.2.0
+    '@types/node': ^26.1.0
+    bumpp: ^11.1.0
+    eslint: ^10.6.0
+    lint-staged: ^17.0.8
+    pnpm: ^11.10.0
+    simple-git-hooks: ^2.13.1
+    tsdown: ^0.22.3
+    tsdown-stale-guard: ^0.1.2
+    tsnapi: ^1.0.0
+    typescript: ^6.0.3
+    vitest: ^4.1.10
+
+  frontend:
+    monaco-editor: ^0.55.1
+    vite: ^6.3.5
+
+  inlined:
+    '@unocss/autocomplete': ^66.7.5
+    '@unocss/core': ^66.7.5
+    '@unocss/transformer-variant-group': ^66.7.5
+    unocss: ^66.7.5
+
+  prod:
+    '@colordx/core': ^5.5.0
+    '@ctrl/tinycolor': ^4.2.0
+    magic-string: ^1.0.0
+    monaco-languageserver-types: ^0.4.1
+    monaco-types: ^0.1.2
+    monaco-worker-manager: ^2.0.1
+    prettier: ^3.9.5
+    vscode-languageserver-protocol: ^3.18.2
+    vscode-languageserver-textdocument: ^1.0.12

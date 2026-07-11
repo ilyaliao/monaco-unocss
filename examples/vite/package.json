@@ -11,10 +11,10 @@
     "monaco-unocss": "workspace:*"
   },
   "devDependencies": {
-    "@unocss/transformer-variant-group": "^66.7.5",
-    "monaco-editor": "^0.55.1",
-    "typescript": "~6.0.3",
-    "unocss": "^66.7.5",
-    "vite": "^6.3.5"
+    "@unocss/transformer-variant-group": "catalog:inlined",
+    "monaco-editor": "catalog:frontend",
+    "typescript": "catalog:dev",
+    "unocss": "catalog:inlined",
+    "vite": "catalog:frontend"
   }
 }
