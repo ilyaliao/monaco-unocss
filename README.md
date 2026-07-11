@@ -97,12 +97,68 @@ initialize({
 
 UnoCSS config lives in the worker because presets, rules, and shortcuts can be functions.
 
+To replace a config at runtime, define a source format and interpret it in the worker hook. This
+example accepts an `export default` prefix followed by a JSON object. Replace the worker
+`initialize()` call above with:
+
+```ts
+// unocss.worker.ts
+import type { UserConfig } from '@unocss/core'
+import { initialize } from 'monaco-unocss/unocss.worker'
+import { presetAttributify } from 'unocss/preset-attributify'
+import { presetWind3 } from 'unocss/preset-wind3'
+
+const prefix = 'export default '
+
+function parseConfigSource(source: string): UserConfig {
+  if (!source.startsWith(prefix))
+    throw new TypeError(`Config source must start with ${JSON.stringify(prefix)}`)
+
+  const config: unknown = JSON.parse(source.slice(prefix.length))
+  if (!config || typeof config !== 'object' || Array.isArray(config))
+    throw new TypeError('Config source must export an object')
+
+  return config
+}
+
+initialize({
+  prepareUnocssConfig(unocssConfig) {
+    const config = typeof unocssConfig === 'string'
+      ? parseConfigSource(unocssConfig)
+      : unocssConfig ?? {}
+
+    return {
+      ...config,
+      presets: [presetWind3(), presetAttributify(), ...(config.presets ?? [])],
+    }
+  },
+})
+```
+
+Send source in that format through the library API. Replace the earlier
+`configureMonacoUnocss(monaco)` call with:
+
+```ts
+// main.ts
+const integration = configureMonacoUnocss(monaco, {
+  unocssConfig: 'export default {"shortcuts":{"btn":"px-4 py-2"}}',
+})
+
+await integration.setUnocssConfig(
+  'export default {"shortcuts":{"btn":"px-6 py-3"}}',
+)
+```
+
+`monaco-unocss` passes config strings through unchanged; it does not evaluate them. The
+integrator's `prepareUnocssConfig` hook must parse or evaluate the string and return a valid UnoCSS
+config object. Without that hook, the worker rejects string configs.
+
 ## Options
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `languageSelector` | `languages.LanguageSelector` | `['css', 'javascript', 'html', 'mdx', 'typescript']` | Languages to register providers for |
-| `unocssConfig` | `UnocssConfig` | `undefined` | Serializable config passed to `prepareUnocssConfig` |
+| `unocssConfig` | `UserConfig \| string` | `undefined` | Serializable config or source string passed unchanged to `prepareUnocssConfig` |
 
 ## Credits
 

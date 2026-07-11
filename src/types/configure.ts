@@ -2,9 +2,9 @@ import type { UserConfig } from '@unocss/core'
 import type { editor, IDisposable, languages, MonacoEditor } from 'monaco-types'
 
 /**
- * A UnoCSS configuration, but without content.
+ * A UnoCSS configuration object, or a source string interpreted by the worker hook.
  */
-export type UnocssConfig = UserConfig
+export type UnocssConfig = UserConfig | string
 
 export interface MonacoUnocssOptions {
   /**
@@ -42,7 +42,7 @@ export interface MonacoUnocss extends IDisposable {
    * Update the current UnoCSS configuration.
    *
    * @param unocssConfig
-   *   The new UnoCSS configuration.
+   *   The new UnoCSS configuration object, or source string for the worker hook to interpret.
    * @returns
    *   A promise that resolves once open documents have been revalidated.
    */
@@ -106,7 +106,7 @@ export interface UnocssWorkerOptions {
    * Hook that will run before the UnoCSS config is used.
    *
    * @param unocssConfig
-   *   The UnoCSS configuration passed from the main thread.
+   *   The UnoCSS configuration object or source string passed from the main thread.
    * @returns
    *   A valid UnoCSS configuration.
    */

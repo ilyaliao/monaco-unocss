@@ -1,10 +1,10 @@
 // @env browser
-import type { UserConfig } from '@unocss/core'
 import type { editor, IDisposable, Uri } from 'monaco-types'
 import type {
   ConfigureMonacoUnocss,
   MonacoUnocssMonacoEditor,
   MonacoUnocssOptions,
+  UnocssConfig,
 } from './types/configure'
 import type { UnocssWorker } from './types/worker'
 import {
@@ -12,6 +12,8 @@ import {
   createCompletionItemProvider,
   createHoverProvider,
 } from './languageFeatures'
+
+export type { UnocssConfig } from './types/configure'
 
 export const defaultLanguageSelector = ['css', 'javascript', 'html', 'mdx', 'typescript'] as const
 
@@ -101,7 +103,7 @@ export const configureMonacoUnocss: ConfigureMonacoUnocss
         }
       },
 
-      async setUnocssConfig(newUnocssConfig: UserConfig) {
+      async setUnocssConfig(newUnocssConfig: UnocssConfig) {
         assertNotDisposed()
         createData = { unocssConfig: newUnocssConfig }
         disposeWorker()

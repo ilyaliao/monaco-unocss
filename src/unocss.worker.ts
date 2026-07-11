@@ -1,5 +1,4 @@
 // @env worker
-import type { UserConfig } from '@unocss/core'
 import type { MonacoUnocssOptions, UnocssWorkerOptions } from './types/configure'
 import type { UnocssWorker } from './types/worker'
 import type { DocumentSession } from './worker/document-session'
@@ -11,12 +10,14 @@ import { createDocumentSessionFactory } from './worker/document-session'
 import { generateStylesFromContent } from './worker/generate-styles'
 import { doHover } from './worker/hover'
 
+export type { UnocssWorkerOptions } from './types/configure'
+
 export function initialize(unocssWorkerOptions?: UnocssWorkerOptions): void {
   globalThis.onmessage = () => initializeWorker<UnocssWorker, MonacoUnocssOptions>((ctx, options) => {
-    const preparedUnocssConfig: UserConfig | PromiseLike<UserConfig>
+    const preparedUnocssConfig
       = unocssWorkerOptions?.prepareUnocssConfig?.(options.unocssConfig)
         ?? options.unocssConfig
-        ?? ({} as UserConfig)
+        ?? {}
     if (typeof preparedUnocssConfig !== 'object') {
       throw new TypeError(
         `Expected unocssConfig to resolve to an object, but got: ${JSON.stringify(

@@ -9,6 +9,9 @@ import { presetWind3 } from 'unocss/preset-wind3'
 
 initialize({
   prepareUnocssConfig(unocssConfig) {
+    if (typeof unocssConfig === 'string')
+      throw new TypeError('The minimal Vite example only accepts object config overrides')
+
     return {
       shortcuts: [
         {

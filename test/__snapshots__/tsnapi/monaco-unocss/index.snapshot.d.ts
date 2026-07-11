@@ -5,3 +5,7 @@
 export declare const configureMonacoUnocss: ConfigureMonacoUnocss;
 export declare const defaultLanguageSelector: readonly ["css", "javascript", "html", "mdx", "typescript"];
 // #endregion
+
+// #region Other
+export { UnocssConfig }
+// #endregion

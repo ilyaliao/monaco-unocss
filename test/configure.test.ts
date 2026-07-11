@@ -63,7 +63,7 @@ describe('configureMonacoUnocss', () => {
       moduleId: 'monaco-unocss/unocss.worker',
     })
 
-    const nextConfig = { shortcuts: { card: 'p-4' } }
+    const nextConfig = 'export default { shortcuts: { card: "p-4" } }'
     integration.setUnocssConfig(nextConfig)
 
     expect(firstWorker.dispose).toHaveBeenCalledOnce()

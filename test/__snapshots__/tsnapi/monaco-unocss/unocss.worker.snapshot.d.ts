@@ -4,3 +4,7 @@
 // #region Functions
 export declare function initialize(_?: UnocssWorkerOptions): void;
 // #endregion
+
+// #region Other
+export { UnocssWorkerOptions }
+// #endregion
