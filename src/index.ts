@@ -3,8 +3,8 @@ import type { editor, IDisposable, Uri } from 'monaco-types'
 import type {
   ConfigureMonacoUnocss,
   MonacoUnocssMonacoEditor,
-  MonacoUnocssOptions,
   UnocssConfig,
+  UnocssWorkerCreateData,
 } from './types/configure'
 import type { UnocssWorker } from './types/worker'
 import {
@@ -30,7 +30,7 @@ function getCreateWebWorker(monaco: MonacoUnocssMonacoEditor): MonacoUnocssMonac
 export const configureMonacoUnocss: ConfigureMonacoUnocss
   = (monaco, { languageSelector = defaultLanguageSelector, unocssConfig } = {}) => {
     const createWebWorker = getCreateWebWorker(monaco)
-    let createData: MonacoUnocssOptions = { unocssConfig }
+    let createData: UnocssWorkerCreateData = { unocssConfig }
     let disposed = false
     let worker: editor.MonacoWebWorker<UnocssWorker> | undefined
 

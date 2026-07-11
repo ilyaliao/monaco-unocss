@@ -1,4 +1,4 @@
-import type { UserConfig } from '@unocss/core'
+import type { GenerateOptions, UserConfig } from '@unocss/core'
 import type { editor, IDisposable, languages, MonacoEditor } from 'monaco-types'
 
 /**
@@ -21,21 +21,25 @@ export interface MonacoUnocssOptions {
   unocssConfig?: UnocssConfig
 }
 
+export type UnocssWorkerCreateData = Pick<
+  MonacoUnocssOptions,
+  'diagnostics' | 'unocssConfig'
+>
+
 /**
- * Contains the content of CSS classes to extract.
- * With optional "extension" key, which might be relevant
- * to properly extract css classed based on the content language.
+ * A source whose utilities should be extracted.
+ *
+ * The optional extension lets UnoCSS select language-specific extractors.
  */
 export interface Content {
   content: string
   extension?: string
 }
 
-export interface GenerateStylesFromContentOptions {
-  preflights?: boolean
-  safelist?: boolean
-  minify?: boolean
-}
+export type GenerateStylesFromContentOptions = Pick<
+  GenerateOptions<boolean>,
+  'preflights' | 'safelist' | 'minify'
+>
 
 export interface MonacoUnocss extends IDisposable {
   /**

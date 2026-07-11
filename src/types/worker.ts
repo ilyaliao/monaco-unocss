@@ -23,7 +23,7 @@ export interface UnocssWorker {
   doHover: (uri: string, languageId: string, position: Position) => Promise<Hover | undefined>
 
   generateStylesFromContent: (
-    contents: (Content | string)[],
+    contents: Content[],
     options?: GenerateStylesFromContentOptions,
   ) => Promise<string>
 

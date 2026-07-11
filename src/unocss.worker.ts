@@ -1,5 +1,5 @@
 // @env worker
-import type { MonacoUnocssOptions, UnocssWorkerOptions } from './types/configure'
+import type { UnocssWorkerCreateData, UnocssWorkerOptions } from './types/configure'
 import type { UnocssWorker } from './types/worker'
 import type { DocumentSession } from './worker/document-session'
 import { initialize as initializeWorker } from 'monaco-editor/esm/vs/common/initialize.js'
@@ -13,7 +13,7 @@ import { doHover } from './worker/hover'
 export type { UnocssWorkerOptions } from './types/configure'
 
 export function initialize(unocssWorkerOptions?: UnocssWorkerOptions): void {
-  globalThis.onmessage = () => initializeWorker<UnocssWorker, MonacoUnocssOptions>((ctx, options) => {
+  globalThis.onmessage = () => initializeWorker<UnocssWorker, UnocssWorkerCreateData>((ctx, options) => {
     const preparedUnocssConfig
       = unocssWorkerOptions?.prepareUnocssConfig?.(options.unocssConfig)
         ?? options.unocssConfig

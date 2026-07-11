@@ -48,7 +48,7 @@ describe('unocss worker initialization', () => {
     )
 
     const css = await worker.generateStylesFromContent(
-      ['<div class="mt-2"></div>'],
+      [{ content: '<div class="mt-2"></div>' }],
       { preflights: false, safelist: false },
     )
 
