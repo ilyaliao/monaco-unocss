@@ -1,13 +1,15 @@
-import type { UnoGenerator } from '@unocss/core'
-import type { Color } from 'vscode-languageserver-protocol'
+import type { UnoGenerator, UserConfig } from '@unocss/core'
+import type { Color, Diagnostic, TextEdit } from 'vscode-languageserver-protocol'
 import { createAutocomplete } from '@unocss/autocomplete'
 import { createGenerator } from '@unocss/core'
+import transformerVariantGroup from '@unocss/transformer-variant-group'
 import { presetAttributify, presetWind3, presetWind4 } from 'unocss'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { Range } from 'vscode-languageserver-protocol'
+import { DiagnosticSeverity, Range } from 'vscode-languageserver-protocol'
 import { TextDocument } from 'vscode-languageserver-textdocument'
 import { getDocumentColors } from '../src/worker/colors'
 import { doComplete, resolveCompletionItem } from '../src/worker/complete'
+import { generateStylesFromContent } from '../src/worker/generate-styles'
 import { doHover } from '../src/worker/hover'
 import { clearAllMatchedPositionsCache, getMatchedPositionsForDocument } from '../src/worker/matched-positions-cache'
 
@@ -53,8 +55,44 @@ function rangeFor(document: TextDocument, source: string, needle: string) {
   )
 }
 
-function createUno({ attributify = false, wind = 'wind3' }: { attributify?: boolean, wind?: 'wind3' | 'wind4' } = {}): Promise<UnoGenerator> {
+type TestUnoConfig = Pick<
+  UserConfig,
+  | 'blocklist'
+  | 'extractorDefault'
+  | 'extractors'
+  | 'preflights'
+  | 'preprocess'
+  | 'rules'
+  | 'safelist'
+  | 'shortcuts'
+  | 'transformers'
+> & {
+  attributify?: boolean
+  wind?: 'wind3' | 'wind4'
+}
+function createUno({
+  attributify = false,
+  blocklist,
+  extractorDefault,
+  extractors,
+  preflights,
+  preprocess,
+  rules,
+  safelist,
+  shortcuts,
+  transformers,
+  wind = 'wind3',
+}: TestUnoConfig = {}): Promise<UnoGenerator> {
   return createGenerator({
+    blocklist,
+    extractorDefault,
+    extractors,
+    preflights,
+    preprocess,
+    rules,
+    safelist,
+    shortcuts,
+    transformers,
     presets: [
       wind === 'wind4' ? presetWind4() : presetWind3(),
       ...(attributify ? [presetAttributify()] : []),
@@ -435,5 +473,195 @@ describe('resolveCompletionItem', () => {
       kind: 'markdown',
       value: expect.stringContaining('[text-red-5=""]'),
     })
+  })
+})
+
+describe('generateStylesFromContent', () => {
+  it('generates CSS for extracted utilities only', async () => {
+    const css = await generateStylesFromContent(
+      createUno(),
+      ['<div class="mt-2 text-red-5"></div>'],
+      { preflights: false, safelist: false },
+    )
+
+    expect(css).toContain('.mt-2')
+    expect(css).toContain('margin-top:0.5rem')
+    expect(css).toContain('.text-red-5')
+    expect(css).toContain('color:rgb(239 68 68 / var(--un-text-opacity))')
+    expect(css).not.toContain('.mb-2')
+    expect(css).not.toContain('padding')
+  })
+
+  it('honors shortcuts from the generator config', async () => {
+    const css = await generateStylesFromContent(
+      createUno({
+        shortcuts: [
+          ['btn-primary', 'px-4 py-2'],
+        ],
+      }),
+      ['<button class="btn-primary"></button>'],
+      { preflights: false, safelist: false },
+    )
+
+    expect(css).toContain('.btn-primary')
+    expect(css).toContain('padding-left:1rem')
+    expect(css).toContain('padding-right:1rem')
+    expect(css).toContain('padding-top:0.5rem')
+    expect(css).toContain('padding-bottom:0.5rem')
+  })
+
+  it('applies configured source transformers before extracting utilities', async () => {
+    const css = await generateStylesFromContent(
+      createUno({
+        transformers: [
+          transformerVariantGroup(),
+        ],
+      }),
+      ['<div class="hover:(mt-2 text-red-5)"></div>'],
+      { preflights: false, safelist: false },
+    )
+
+    expect(css).toContain('.hover\\:mt-2:hover')
+    expect(css).toContain('margin-top:0.5rem')
+    expect(css).toContain('.hover\\:text-red-5:hover')
+    expect(css).toContain('color:rgb(239 68 68 / var(--un-text-opacity))')
+  })
+
+  it('uses the preflights generate option', async () => {
+    const uno = createUno({
+      preflights: [
+        {
+          getCSS: () => '*,::before,::after{box-sizing:border-box;}',
+        },
+      ],
+    })
+
+    const withPreflights = await generateStylesFromContent(
+      uno,
+      ['<div></div>'],
+      { preflights: true, safelist: false },
+    )
+    const withoutPreflights = await generateStylesFromContent(
+      uno,
+      ['<div></div>'],
+      { preflights: false, safelist: false },
+    )
+
+    expect(withPreflights).toContain('box-sizing:border-box')
+    expect(withoutPreflights).not.toContain('box-sizing:border-box')
+  })
+
+  it('uses the minify generate option', async () => {
+    const uno = createUno()
+
+    const readable = await generateStylesFromContent(
+      uno,
+      ['<div class="mt-2"></div>'],
+      { preflights: false, safelist: false, minify: false },
+    )
+    const minified = await generateStylesFromContent(
+      uno,
+      ['<div class="mt-2"></div>'],
+      { preflights: false, safelist: false, minify: true },
+    )
+
+    expect(readable).toContain('\n')
+    expect(minified).not.toContain('\n')
+    expect(minified).not.toContain('/* layer')
+    expect(minified).toContain('.mt-2{margin-top:0.5rem;}')
+  })
+
+  it('uses the safelist generate option', async () => {
+    const uno = createUno({ safelist: ['mt-4'] })
+
+    const withSafelist = await generateStylesFromContent(
+      uno,
+      [],
+      { preflights: false, safelist: true },
+    )
+    const withoutSafelist = await generateStylesFromContent(
+      uno,
+      [],
+      { preflights: false, safelist: false },
+    )
+
+    expect(withSafelist).toContain('.mt-4')
+    expect(withoutSafelist).toBe('')
+  })
+
+  it('merges multiple content entries without duplicated rules', async () => {
+    const css = await generateStylesFromContent(
+      createUno(),
+      [
+        { content: '<div class="mt-2"></div>', extension: 'html' },
+        { content: '<section class="mt-2 mb-4"></section>', extension: '.html' },
+      ],
+      { preflights: false, safelist: false },
+    )
+
+    expect(countOccurrences(css, '.mt-2')).toBe(1)
+    expect(countOccurrences(css, 'margin-top:0.5rem')).toBe(1)
+    expect(css).toContain('.mb-4')
+  })
+
+  it('passes Content.extension through as a generator id', async () => {
+    const uno = createUno({
+      extractorDefault: false,
+      extractors: [
+        {
+          name: 'test-vue-only',
+          extract({ code, id }) {
+            if (!id?.endsWith('.vue') || !code.includes('vue-only'))
+              return []
+
+            return ['vue-only']
+          },
+        },
+      ],
+      rules: [
+        ['vue-only', { color: 'red' }],
+      ],
+    })
+
+    const withoutVueId = await generateStylesFromContent(
+      uno,
+      [{ content: 'vue-only', extension: 'html' }],
+      { preflights: false, safelist: false },
+    )
+    const withVueId = await generateStylesFromContent(
+      uno,
+      [{ content: 'vue-only', extension: 'vue' }],
+      { preflights: false, safelist: false },
+    )
+
+    expect(withoutVueId).toBe('')
+    expect(withVueId).toContain('.vue-only')
+    expect(withVueId).toContain('color:red')
+  })
+
+  it('returns empty CSS for no-utility content without crashing', async () => {
+    await expect(
+      generateStylesFromContent(
+        createUno(),
+        ['plain text only'],
+        { preflights: false, safelist: false },
+      ),
+    ).resolves.toBe('')
+  })
+
+  it('can return preflight-only CSS for no-utility content', async () => {
+    await expect(
+      generateStylesFromContent(
+        createUno({
+          preflights: [
+            {
+              getCSS: () => ':root{--uno-ready:1;}',
+            },
+          ],
+        }),
+        ['plain text only'],
+        { preflights: true, safelist: false },
+      ),
+    ).resolves.toContain('--uno-ready:1')
   })
 })

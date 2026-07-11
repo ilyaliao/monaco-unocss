@@ -45,12 +45,12 @@ export const configureMonacoUnocss: ConfigureMonacoUnocss
         workerManager.updateCreateData({ unocssConfig: newUnocssConfig })
       },
 
-      async generateStylesFromContent(css, contents) {
+      async generateStylesFromContent(contents, options) {
         const client = await workerManager.getWorker()
 
         return client.generateStylesFromContent(
-          css,
           contents.map(content => (typeof content === 'string' ? { content } : content)),
+          options,
         )
       },
     }

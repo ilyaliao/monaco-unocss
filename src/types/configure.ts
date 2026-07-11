@@ -31,6 +31,12 @@ export interface Content {
   extension?: string
 }
 
+export interface GenerateStylesFromContentOptions {
+  preflights?: boolean
+  safelist?: boolean
+  minify?: boolean
+}
+
 export interface MonacoUnocss extends IDisposable {
   /**
    * Update the current UnoCSS configuration.
@@ -41,9 +47,20 @@ export interface MonacoUnocss extends IDisposable {
   setUnocssConfig: (unocssConfig: UnocssConfig) => void
 
   /**
-   * Generate styles using UnoCSS.
+   * Generate a stylesheet from arbitrary contents using the worker's UnoCSS config.
+   *
+   * @param contents
+   *   Contents to extract utilities from; plain strings are treated as `{ content }`.
+   * @param options
+   *   Maps onto UnoCSS `GenerateOptions`: `preflights` (default true), `safelist`
+   *   (default true), `minify` (default false).
+   * @returns
+   *   The merged CSS for all extracted utilities, without duplicated rules.
    */
-  generateStylesFromContent: (css: string, content: (Content | string)[]) => Promise<string>
+  generateStylesFromContent: (
+    contents: (Content | string)[],
+    options?: GenerateStylesFromContentOptions,
+  ) => Promise<string>
 }
 
 /**

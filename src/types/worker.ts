@@ -1,11 +1,15 @@
 import type {
+  CodeAction,
+  CodeActionContext,
   ColorInformation,
   CompletionContext,
   CompletionItem,
   CompletionList,
   Hover,
   Position,
+  Range,
 } from 'vscode-languageserver-protocol'
+import type { Content, GenerateStylesFromContentOptions } from './configure'
 
 export interface UnocssWorker {
   doComplete: (
@@ -17,7 +21,10 @@ export interface UnocssWorker {
 
   doHover: (uri: string, languageId: string, position: Position) => Promise<Hover | undefined>
 
-  generateStylesFromContent: (css: string, content: any[]) => string
+  generateStylesFromContent: (
+    contents: (Content | string)[],
+    options?: GenerateStylesFromContentOptions,
+  ) => Promise<string>
 
   getDocumentColors: (uri: string, languageId: string) => Promise<ColorInformation[] | undefined>
 

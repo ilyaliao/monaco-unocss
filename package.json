@@ -46,7 +46,7 @@
   },
   "peerDependencies": {
     "@unocss/autocomplete": ">=66",
-    "@unocss/core": ">=66",
+    "@unocss/core": ">=66.3.0",
     "monaco-editor": ">=0.36"
   },
   "dependencies": {
@@ -65,8 +65,9 @@
     "@antfu/ni": "^25.0.0",
     "@antfu/utils": "^9.2.0",
     "@types/node": "^24.0.1",
-    "@unocss/autocomplete": "^66.2.0",
-    "@unocss/core": "^66.2.0",
+    "@unocss/autocomplete": "^66.3.1",
+    "@unocss/core": "^66.3.1",
+    "@unocss/transformer-variant-group": "^66.3.1",
     "bumpp": "^10.1.1",
     "eslint": "^9.29.0",
     "esno": "^4.8.0",
@@ -75,7 +76,7 @@
     "simple-git-hooks": "^2.13.0",
     "tsdown": "^0.12.7",
     "typescript": "^5.8.3",
-    "unocss": "^66.2.0",
+    "unocss": "^66.3.1",
     "vite": "^6.3.5",
     "vitest": "^3.2.3"
   },

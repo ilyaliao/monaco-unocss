@@ -7,6 +7,7 @@ import { initialize as initializeWorker } from 'monaco-worker-manager/worker'
 import { TextDocument } from 'vscode-languageserver-textdocument'
 import { getDocumentColors as getDocumentColorsForDocument } from './worker/colors'
 import { doComplete, resolveCompletionItem } from './worker/complete'
+import { generateStylesFromContent } from './worker/generate-styles'
 import { doHover } from './worker/hover'
 import { pruneMatchedPositionsCache } from './worker/matched-positions-cache'
 
@@ -57,11 +58,8 @@ export function initialize(unocssWorkerOptions?: UnocssWorkerOptions): void {
 
       doHover: withDocument((document, position) => doHover(document, position, __uno)),
 
-      async generateStylesFromContent(css, content) {
-        // eslint-disable-next-line no-console
-        console.log('generateStylesFromContent', css, content)
-        return ''
-      },
+      generateStylesFromContent: (content, options) =>
+        generateStylesFromContent(__uno, content, options),
 
       getDocumentColors: withDocument(document => getDocumentColorsForDocument(document, __uno)),
 
