@@ -9,6 +9,7 @@
     "strictNullChecks": true,
     "noEmit": true,
     "esModuleInterop": true,
+    "isolatedModules": true,
     "skipDefaultLibCheck": true,
     "skipLibCheck": true
   }

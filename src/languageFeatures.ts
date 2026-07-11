@@ -1,3 +1,4 @@
+// @env browser
 import type { editor, languages, MonacoEditor } from 'monaco-types'
 import type { WorkerGetter } from 'monaco-worker-manager'
 import type { CompletionItem as LspCompletionItem } from 'vscode-languageserver-protocol'

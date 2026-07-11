@@ -1,3 +1,4 @@
+// @env worker
 import type { UnocssAutocomplete } from '@unocss/autocomplete'
 import type { UnoGenerator, UserConfig, UserConfigDefaults } from '@unocss/core'
 import type { MonacoUnocssOptions, UnocssWorkerOptions } from './types/configure'
@@ -75,5 +76,5 @@ export function initialize(unocssWorkerOptions?: UnocssWorkerOptions): void {
   })
 }
 
-// Side effect initialization - but this function can be called more than once. Last applies.
+// Register the default worker endpoint for direct worker imports.
 initialize()

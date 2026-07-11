@@ -1,3 +1,4 @@
+// @env browser
 import type { UserConfig } from '@unocss/core'
 import type { ConfigureMonacoUnocss, MonacoUnocssOptions } from './types/configure'
 import type { UnocssWorker } from './types/worker'

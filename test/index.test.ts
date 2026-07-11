@@ -1,5 +1,6 @@
 import type { UnoGenerator, UserConfig } from '@unocss/core'
-import type { Color, Diagnostic, TextEdit } from 'vscode-languageserver-protocol'
+// @env node
+import type { Color, Diagnostic, Position, TextEdit } from 'vscode-languageserver-protocol'
 import { createAutocomplete } from '@unocss/autocomplete'
 import { createGenerator } from '@unocss/core'
 import transformerVariantGroup from '@unocss/transformer-variant-group'
@@ -28,7 +29,7 @@ function createDocument(source: string, options: { uri?: string, version?: numbe
   )
 }
 
-function positionInside(document: TextDocument, source: string, needle: string) {
+function positionInside(document: TextDocument, source: string, needle: string): Position {
   const index = source.indexOf(needle)
   if (index < 0)
     throw new Error(`Missing test needle: ${needle}`)
@@ -36,7 +37,7 @@ function positionInside(document: TextDocument, source: string, needle: string) 
   return document.positionAt(index + Math.floor(needle.length / 2))
 }
 
-function positionAfter(document: TextDocument, source: string, needle: string) {
+function positionAfter(document: TextDocument, source: string, needle: string): Position {
   const index = source.indexOf(needle)
   if (index < 0)
     throw new Error(`Missing test needle: ${needle}`)
@@ -44,7 +45,7 @@ function positionAfter(document: TextDocument, source: string, needle: string) {
   return document.positionAt(index + needle.length)
 }
 
-function rangeFor(document: TextDocument, source: string, needle: string) {
+function rangeFor(document: TextDocument, source: string, needle: string): Range {
   const index = source.indexOf(needle)
   if (index < 0)
     throw new Error(`Missing test needle: ${needle}`)
@@ -70,6 +71,9 @@ type TestUnoConfig = Pick<
   attributify?: boolean
   wind?: 'wind3' | 'wind4'
 }
+
+type CompletionItemUnderTest = NonNullable<Awaited<ReturnType<typeof doComplete>>>['items'][number]
+
 function createUno({
   attributify = false,
   blocklist,
@@ -100,7 +104,7 @@ function createUno({
   })
 }
 
-function expectColor(color: Color, expected: { alpha: number, blue: number, green: number, red: number }) {
+function expectColor(color: Color, expected: { alpha: number, blue: number, green: number, red: number }): void {
   expect(color.red).toBeCloseTo(expected.red / 255, 5)
   expect(color.green).toBeCloseTo(expected.green / 255, 5)
   expect(color.blue).toBeCloseTo(expected.blue / 255, 5)
@@ -116,7 +120,7 @@ function getTextEditRange(item: NonNullable<Awaited<ReturnType<typeof doComplete
   return edit.range
 }
 
-function getTextEditNewText(item: NonNullable<Awaited<ReturnType<typeof doComplete>>>['items'][number]) {
+function getTextEditNewText(item: CompletionItemUnderTest): string {
   const edit = item.textEdit
 
   if (!edit || !('newText' in edit))
