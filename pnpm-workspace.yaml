@@ -1,3 +1,24 @@
+ignoreWorkspaceRootCheck: true
+minimumReleaseAgeExclude:
+  - '@typescript-eslint/*'
+  - '@unocss/*'
+  - '@vitest/*'
+  - caniuse-lite
+  - electron-to-chromium
+  - eslint-plugin-jsonc
+  - eslint-plugin-perfectionist
+  - eslint-plugin-yml
+  - unocss
+  - vitest
+
+shellEmulator: true
+
+trustPolicy: no-downgrade
+
+allowBuilds:
+  esbuild: true
+  simple-git-hooks: true
+
 packages:
   - playground
   - docs

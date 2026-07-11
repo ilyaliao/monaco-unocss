@@ -1,3 +1,4 @@
+import type { UnocssAutocomplete } from '@unocss/autocomplete'
 import type { UnoGenerator, UserConfig, UserConfigDefaults } from '@unocss/core'
 import type { MonacoUnocssOptions, UnocssWorkerOptions } from './types/configure'
 import type { UnocssWorker } from './types/worker'
@@ -33,7 +34,9 @@ export function initialize(unocssWorkerOptions?: UnocssWorkerOptions): void {
     const defaultUnocssConfig: UserConfigDefaults = {}
 
     const __uno = generatorConfig(preparedUnocssConfig, defaultUnocssConfig)
-    const autocomplete = createAutocomplete(__uno)
+    let autocomplete: Promise<UnocssAutocomplete> | undefined
+    const getAutocomplete = (): Promise<UnocssAutocomplete> =>
+      autocomplete ??= __uno.then(uno => createAutocomplete(uno))
 
     const withDocument
       = <A extends unknown[], R>(
@@ -54,7 +57,9 @@ export function initialize(unocssWorkerOptions?: UnocssWorkerOptions): void {
         }
 
     return {
-      doComplete: withDocument((document, position) => doComplete(document, position, autocomplete)),
+      doComplete: withDocument(async (document, position) =>
+        doComplete(document, position, await getAutocomplete()),
+      ),
 
       doHover: withDocument((document, position) => doHover(document, position, __uno)),
 

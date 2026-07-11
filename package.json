@@ -2,7 +2,7 @@
   "name": "monaco-unocss",
   "type": "module",
   "version": "0.0.0",
-  "packageManager": "pnpm@10.12.1",
+  "packageManager": "pnpm@11.10.0",
   "description": "UnoCSS integration for Monaco editor",
   "author": {
     "name": "Ilyal",
@@ -27,19 +27,19 @@
   "sideEffects": false,
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
     },
     "./unocss.worker": {
-      "types": "./dist/unocss.worker.d.ts",
-      "import": "./dist/unocss.worker.js",
+      "types": "./dist/unocss.worker.d.mts",
+      "import": "./dist/unocss.worker.mjs",
       "require": "./dist/unocss.worker.cjs"
     }
   },
   "main": "./dist/index.cjs",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "files": [
     "dist"
   ],
@@ -59,40 +59,40 @@
     "prepare": "simple-git-hooks"
   },
   "peerDependencies": {
-    "@unocss/autocomplete": ">=66",
-    "@unocss/core": ">=66.3.0",
-    "monaco-editor": ">=0.36"
+    "@unocss/autocomplete": ">=66.7.5",
+    "@unocss/core": ">=66.7.5",
+    "monaco-editor": ">=0.55.1"
   },
   "dependencies": {
     "@colordx/core": "^5.5.0",
-    "@ctrl/tinycolor": "^4.1.0",
+    "@ctrl/tinycolor": "^4.2.0",
     "magic-string": "^1.0.0",
-    "monaco-languageserver-types": "^0.4.0",
-    "monaco-types": "^0.1.0",
+    "monaco-languageserver-types": "^0.4.1",
+    "monaco-types": "^0.1.2",
     "monaco-worker-manager": "^2.0.1",
     "prettier": "^3.9.5",
-    "vscode-languageserver-protocol": "^3.17.5",
+    "vscode-languageserver-protocol": "^3.18.2",
     "vscode-languageserver-textdocument": "^1.0.12"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^4.14.1",
-    "@antfu/ni": "^25.0.0",
-    "@antfu/utils": "^9.2.0",
-    "@types/node": "^24.0.1",
-    "@unocss/autocomplete": "^66.3.1",
-    "@unocss/core": "^66.3.1",
-    "@unocss/transformer-variant-group": "^66.3.1",
-    "bumpp": "^10.1.1",
-    "eslint": "^9.29.0",
+    "@antfu/eslint-config": "^9.1.0",
+    "@antfu/ni": "^30.2.0",
+    "@antfu/utils": "^9.3.0",
+    "@types/node": "^26.1.0",
+    "@unocss/autocomplete": "^66.7.5",
+    "@unocss/core": "^66.7.5",
+    "@unocss/transformer-variant-group": "^66.7.5",
+    "bumpp": "^11.1.0",
+    "eslint": "^10.6.0",
     "esno": "^4.8.0",
-    "lint-staged": "^16.1.1",
-    "pnpm": "^10.12.1",
-    "simple-git-hooks": "^2.13.0",
-    "tsdown": "^0.12.7",
-    "typescript": "^5.8.3",
-    "unocss": "^66.3.1",
+    "lint-staged": "^17.0.8",
+    "pnpm": "^11.10.0",
+    "simple-git-hooks": "^2.13.1",
+    "tsdown": "^0.22.3",
+    "typescript": "^6.0.3",
+    "unocss": "^66.7.5",
     "vite": "^6.3.5",
-    "vitest": "^3.2.3"
+    "vitest": "^4.1.10"
   },
   "simple-git-hooks": {
     "pre-commit": "pnpm lint-staged"

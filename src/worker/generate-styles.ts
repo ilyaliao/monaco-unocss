@@ -4,10 +4,6 @@ import MagicString from 'magic-string'
 
 const transformerEnforceOrder = ['pre', 'default', 'post'] as const
 
-type SourceCodeTransformerWithCodeFilter = SourceCodeTransformer & {
-  codeFilter?: (code: string, id: string) => boolean
-}
-
 function contentIdForExtension(extension: string | undefined): string | undefined {
   const normalized = extension?.trim().replace(/^\./, '')
 
@@ -25,8 +21,7 @@ function shouldTransform(transformer: SourceCodeTransformer, code: string, id: s
   if (transformer.idFilter && !transformer.idFilter(id))
     return false
 
-  const { codeFilter } = transformer as SourceCodeTransformerWithCodeFilter
-  return codeFilter?.(code, id) ?? true
+  return transformer.codeFilter?.(code, id) ?? true
 }
 
 async function applyTransformers(

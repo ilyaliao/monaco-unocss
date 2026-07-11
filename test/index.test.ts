@@ -373,7 +373,7 @@ describe('doComplete', () => {
     const list = await doComplete(
       document,
       positionAfter(document, source, 'bg-red-'),
-      createAutocomplete(uno),
+      createAutocomplete(await uno),
     )
 
     const item = list?.items.find(item => item.label === 'bg-red-5')
@@ -392,7 +392,7 @@ describe('doComplete', () => {
     const list = await doComplete(
       document,
       positionAfter(document, source, 'red-'),
-      createAutocomplete(uno),
+      createAutocomplete(await uno),
     )
 
     const item = list?.items.find(item => item.label === 'red-5')
@@ -409,7 +409,7 @@ describe('doComplete', () => {
     const list = await doComplete(
       document,
       positionAfter(document, source, 'text-r'),
-      createAutocomplete(uno),
+      createAutocomplete(await uno),
     )
 
     expect(list?.items.length).toBeGreaterThan(0)
@@ -430,7 +430,7 @@ describe('resolveCompletionItem', () => {
     const list = await doComplete(
       document,
       positionAfter(document, source, 'bg-red-'),
-      createAutocomplete(uno),
+      createAutocomplete(await uno),
     )
     const item = list?.items.find(item => item.label === 'bg-red-5')
 
@@ -461,7 +461,7 @@ describe('resolveCompletionItem', () => {
     const list = await doComplete(
       document,
       positionAfter(document, source, 'red-'),
-      createAutocomplete(uno),
+      createAutocomplete(await uno),
     )
     const item = list?.items.find(item => item.label === 'red-5')
 
