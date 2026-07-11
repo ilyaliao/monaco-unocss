@@ -5,8 +5,9 @@ import type { TextDocument } from 'vscode-languageserver-textdocument'
 import type { DocumentSession } from '../src/worker/document-session'
 import transformerVariantGroup from '@unocss/transformer-variant-group'
 import { presetAttributify, presetWind3, presetWind4 } from 'unocss'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DiagnosticSeverity, Range } from 'vscode-languageserver-protocol'
+import * as colorUtilities from '../src/vendor/color'
 import { getDocumentColors } from '../src/worker/colors'
 import { doComplete, resolveCompletionItem } from '../src/worker/complete'
 import { createDocumentSessionFactory } from '../src/worker/document-session'
@@ -14,6 +15,8 @@ import { generateStylesFromContent } from '../src/worker/generate-styles'
 import { doHover } from '../src/worker/hover'
 
 let fixtureIndex = 0
+
+afterEach(() => vi.restoreAllMocks())
 
 function positionInside(document: TextDocument, source: string, needle: string): Position {
   const index = source.indexOf(needle)
@@ -343,27 +346,70 @@ describe('getDocumentColors', () => {
     expectColor(colors![0].color, { red: 255, green: 136, blue: 136, alpha: 1 })
   })
 
-  it('reports an arbitrary named-color utility', async () => {
-    const source = '<div class="bg-[hotpink]"></div>'
+  it('reports an arbitrary hex-color utility', async () => {
+    const source = '<div class="bg-[#ff69b4]"></div>'
     const { document, session } = createTestSession(source)
 
     const colors = await getDocumentColors(session)
 
     expect(colors).toHaveLength(1)
-    expect(colors?.[0].range).toEqual(rangeFor(document, source, 'bg-[hotpink]'))
+    expect(colors?.[0].range).toEqual(rangeFor(document, source, 'bg-[#ff69b4]'))
     expectColor(colors![0].color, { red: 255, green: 105, blue: 180, alpha: 1 })
   })
 
-  it('reports a wind4 arbitrary named-color utility instead of transparent preflight colors', async () => {
-    const source = '<div class="text-[hotpink]"></div>'
+  it('reports a color from a raw rule stylesheet', async () => {
+    const source = '<div class="raw-color"></div>'
+    const { document, session } = createTestSession(source, {
+      rules: [[/^raw-color$/, () => 'a:hover{color:#f00;}']],
+    })
+
+    const colors = await getDocumentColors(session)
+
+    expect(colors).toHaveLength(1)
+    expect(colors?.[0].range).toEqual(rangeFor(document, source, 'raw-color'))
+    expectColor(colors![0].color, { red: 255, green: 0, blue: 0, alpha: 1 })
+  })
+
+  it.each(['bg-[#ff69b4]!', '!bg-[#ff69b4]'])(
+    'reports an important arbitrary hex-color utility for %s',
+    async (utility) => {
+      const source = `<div class="${utility}"></div>`
+      const { document, session } = createTestSession(source)
+
+      const colors = await getDocumentColors(session)
+
+      expect(colors).toHaveLength(1)
+      expect(colors?.[0].range).toEqual(rangeFor(document, source, utility))
+      expectColor(colors![0].color, { red: 255, green: 105, blue: 180, alpha: 1 })
+    },
+  )
+
+  it('reports a wind4 arbitrary hex-color utility instead of transparent preflight colors', async () => {
+    const source = '<div class="text-[#ff69b4]"></div>'
     const { document, session } = createTestSession(source, { wind: 'wind4' })
 
     const colors = await getDocumentColors(session)
 
     expect(colors).toHaveLength(1)
-    expect(colors?.[0].range).toEqual(rangeFor(document, source, 'text-[hotpink]'))
+    expect(colors?.[0].range).toEqual(rangeFor(document, source, 'text-[#ff69b4]'))
     // Empirically, presetWind4 emits the default text opacity as 100%.
     expectColor(colors![0].color, { red: 255, green: 105, blue: 180, alpha: 1 })
+  })
+
+  it('scopes a wind4 color to the matched utility instead of custom preflights', async () => {
+    const source = '<div class="text-blue-500"></div>'
+    const { document, session } = createTestSession(source, {
+      preflights: [{
+        getCSS: () => '*{color:red;}',
+      }],
+      wind: 'wind4',
+    })
+
+    const colors = await getDocumentColors(session)
+
+    expect(colors).toHaveLength(1)
+    expect(colors?.[0].range).toEqual(rangeFor(document, source, 'text-blue-500'))
+    expectColor(colors![0].color, { red: 43, green: 127, blue: 255, alpha: 1 })
   })
 
   it('skips transparent named-color utilities', async () => {
@@ -422,6 +468,51 @@ describe('getDocumentColors', () => {
     expect(colors).toHaveLength(1)
     expect(colors?.[0].range).toEqual(rangeFor(document, source, 'red-5'))
     expectColor(colors![0].color, { red: 239, green: 68, blue: 68, alpha: 1 })
+  })
+
+  it('generates a repeated utility once while reporting every matched position', async () => {
+    const utility = 'text-red-5'
+    const source = `<div class="${Array.from({ length: 500 }).fill(utility).join(' ')}"></div>`
+    const { document, session } = createTestSession(source)
+    const uno = await session.getGenerator()
+    if (!uno)
+      throw new Error('Missing test generator')
+    await session.getMatchedPositions()
+    const generate = vi.spyOn(uno, 'generate')
+    const parseColor = vi.spyOn(colorUtilities, 'parseColorToRGBA')
+
+    const colors = await getDocumentColors(session)
+
+    expect(generate).toHaveBeenCalledOnce()
+    expect(parseColor).toHaveBeenCalledOnce()
+    expect(colors).toHaveLength(500)
+    expect(colors?.map(color => color.range)).toEqual(
+      [...source.matchAll(/text-red-5/g)].map(match => Range.create(
+        document.positionAt(match.index),
+        document.positionAt(match.index + utility.length),
+      )),
+    )
+  })
+
+  it('parses a repeated invalid color once without reporting ranges', async () => {
+    const utility = 'broken-color'
+    const source = `<div class="${utility} ${utility} ${utility}"></div>`
+    const { session } = createTestSession(source, {
+      rules: [[utility, { color: 'rgb(not a color)' }]],
+    })
+    const uno = await session.getGenerator()
+    if (!uno)
+      throw new Error('Missing test generator')
+    const positions = await session.getMatchedPositions()
+    expect(positions).toHaveLength(3)
+    const generate = vi.spyOn(uno, 'generate')
+    const parseColor = vi.spyOn(colorUtilities, 'parseColorToRGBA')
+
+    const colors = await getDocumentColors(session)
+
+    expect(generate).toHaveBeenCalledOnce()
+    expect(parseColor).toHaveBeenCalledOnce()
+    expect(colors).toEqual([])
   })
 })
 

@@ -1,30 +1,22 @@
 import type { UnoGenerator } from '@unocss/core'
-import parserPostcss from 'prettier/plugins/postcss'
-import { format } from 'prettier/standalone'
-import { getCSS } from '../vendor/css'
+import { getCSS, getPrettiedMarkdown } from '../vendor/css'
+import { getUtilityCandidates } from './utility-candidates'
 
-async function formatCssAsMarkdown(css: string): Promise<string> {
-  const formattedCss = (await format(css, {
-    parser: 'css',
-    plugins: [parserPostcss],
-  })).trimEnd()
-
-  return `\`\`\`css\n${formattedCss}\n\`\`\``
-}
+const remToPxRatio = 16
 
 export async function generatePrettiedCssMarkdown(
   uno: UnoGenerator,
   utility: string,
 ): Promise<string | undefined> {
-  const isAttributify = uno.config.presets.some(p => p.name === '@unocss/preset-attributify')
+  const candidates = getUtilityCandidates(uno, utility)
 
   try {
-    const css = await getCSS(uno, isAttributify ? [utility, `[${utility}=""]`] : utility)
+    const css = await getCSS(uno, candidates)
 
     if (!css.trim())
       return undefined
 
-    return await formatCssAsMarkdown(css)
+    return await getPrettiedMarkdown(uno, candidates, remToPxRatio)
   }
   catch {
     return undefined

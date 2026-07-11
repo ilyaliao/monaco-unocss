@@ -2,6 +2,8 @@ import type { ColorInformation } from 'vscode-languageserver-protocol'
 import type { DocumentSession } from './document-session'
 import { getColorString, parseColorToRGBA } from '../vendor/color'
 import { getCSS } from '../vendor/css'
+import { hasPreset } from './presets'
+import { getUtilityCandidates } from './utility-candidates'
 
 export async function getDocumentColors(
   session: DocumentSession,
@@ -15,28 +17,33 @@ export async function getDocumentColors(
   if (!positions)
     return undefined
 
-  const isAttributify = uno.config.presets.some(i => i.name === '@unocss/preset-attributify')
-  const isWind4 = uno.config.presets.some(i => i.name === '@unocss/preset-wind4')
+  const isWind4 = hasPreset(uno, '@unocss/preset-wind4')
   const colors: ColorInformation[] = []
+  const parsedColors = new Map<string, ColorInformation['color'] | undefined>()
   let firstFailure: unknown
 
   for (const [start, end, className] of positions) {
-    try {
-      const css = await getCSS(uno, isAttributify ? [className, `[${className}=""]`] : className, isWind4)
-      const colorString = getColorString(css)
-      const color = colorString ? parseColorToRGBA(colorString) : undefined
-      if (color) {
-        colors.push({
-          range: {
-            start: document.positionAt(start),
-            end: document.positionAt(end),
-          },
-          color,
-        })
+    if (!parsedColors.has(className)) {
+      try {
+        const css = await getCSS(uno, getUtilityCandidates(uno, className), isWind4)
+        const colorString = getColorString(css)
+        parsedColors.set(className, colorString ? parseColorToRGBA(colorString) : undefined)
+      }
+      catch (error) {
+        parsedColors.set(className, undefined)
+        firstFailure ??= error
       }
     }
-    catch (error) {
-      firstFailure ??= error
+
+    const color = parsedColors.get(className)
+    if (color) {
+      colors.push({
+        range: {
+          start: document.positionAt(start),
+          end: document.positionAt(end),
+        },
+        color,
+      })
     }
   }
 
