@@ -21,10 +21,7 @@ export interface MonacoUnocssOptions {
   unocssConfig?: UnocssConfig
 }
 
-export type UnocssWorkerCreateData = Pick<
-  MonacoUnocssOptions,
-  'diagnostics' | 'unocssConfig'
->
+export type UnocssWorkerCreateData = Pick<MonacoUnocssOptions, 'unocssConfig'>
 
 /**
  * A source whose utilities should be extracted.

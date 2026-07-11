@@ -12,6 +12,10 @@ import {
   createCompletionItemProvider,
   createHoverProvider,
 } from './languageFeatures'
+import {
+  createWorkerGeneration,
+  createWorkerGenerationClient,
+} from './worker-generation'
 
 export type { UnocssConfig } from './types/configure'
 
@@ -33,6 +37,7 @@ export const configureMonacoUnocss: ConfigureMonacoUnocss
     let createData: UnocssWorkerCreateData = { unocssConfig }
     let disposed = false
     let worker: editor.MonacoWebWorker<UnocssWorker> | undefined
+    let workerGeneration: ReturnType<typeof createWorkerGeneration> | undefined
 
     const assertNotDisposed = (): void => {
       if (disposed)
@@ -40,7 +45,9 @@ export const configureMonacoUnocss: ConfigureMonacoUnocss
     }
 
     const disposeWorker = (): void => {
+      workerGeneration?.invalidate()
       worker?.dispose()
+      workerGeneration = undefined
       worker = undefined
     }
 
@@ -52,8 +59,12 @@ export const configureMonacoUnocss: ConfigureMonacoUnocss
         label: 'unocss',
         moduleId: 'monaco-unocss/unocss.worker',
       })
+      const generation = workerGeneration ??= createWorkerGeneration()
 
-      return worker.withSyncedResources(resources)
+      return Promise.resolve(createWorkerGenerationClient(
+        worker.withSyncedResources(resources),
+        generation,
+      ))
     }
 
     const workerDisposable: IDisposable = {
@@ -71,6 +82,7 @@ export const configureMonacoUnocss: ConfigureMonacoUnocss
       },
     }
     const refreshColorProvider = (): void => {
+      colorProvider.reset()
       colorProviderRegistration.dispose()
       colorProviderRegistration = monaco.languages.registerColorProvider(
         languageSelector,

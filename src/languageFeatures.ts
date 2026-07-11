@@ -3,7 +3,7 @@ import type { editor, IDisposable, languages, MonacoEditor, Uri } from 'monaco-t
 import type { CompletionItem as LspCompletionItem } from 'vscode-languageserver-protocol'
 
 import type { UnocssWorker } from './types/worker'
-import { fromRatio, names as namedColors } from '@ctrl/tinycolor'
+import { fromRatio } from '@ctrl/tinycolor'
 import {
   fromCompletionContext,
   fromCompletionItem,
@@ -13,6 +13,7 @@ import {
   toCompletionList,
   toHover,
 } from 'monaco-languageserver-types'
+import { parseEditableColorUtility } from './editable-color'
 import { decidePreserveOrClear } from './preserve-or-clear'
 
 type WorkerAccessor = (...args: Uri[]) => Promise<UnocssWorker>
@@ -21,50 +22,115 @@ type CompletionItemWithData = languages.CompletionItem & { data?: unknown }
 interface ModelLayerRequest<T> {
   canCommit: () => boolean
   clearLastKnownGood: () => void
+  complete: () => void
   getLastKnownGood: () => T | undefined
+  invalidated: Promise<void>
   setLastKnownGood: (value: T) => void
+}
+
+interface ModelLayerRequestRecord<T> extends ModelLayerRequest<T> {
+  invalidate: () => void
+  languageId: string
 }
 
 interface ModelLayerState<T> {
   begin: (model: editor.ITextModel) => ModelLayerRequest<T>
-  reset: (model: editor.ITextModel) => void
+  clearLastKnownGood: (model: editor.ITextModel) => void
+  invalidate: (model: editor.ITextModel) => void
+  invalidateAll: () => void
 }
 
-const colorNames = Object.keys(namedColors)
-const editableColorRegex = new RegExp(
-  `-\\[(${colorNames.join('|')}|(?:(?:#|rgba?\\(|hsla?\\())[^\\]]+)\\]$`,
-  'i',
-)
+type ModelLayerRequestOutcome<T>
+  = | { kind: 'invalidated' }
+    | { kind: 'result', value: T }
+
+interface ModelColorDecorationState {
+  classNames: Set<string>
+  decorationIds: string[]
+}
+
+interface ColorProvider extends languages.DocumentColorProvider, IDisposable {
+  reset: () => void
+}
+
+const colorClassPrefix = 'unocss-color-decoration-'
+const colorClassReferences = new Map<string, number>()
 const sheet = new CSSStyleSheet()
 document.adoptedStyleSheets.push(sheet)
 
 function createModelLayerState<T>(): ModelLayerState<T> {
-  const lastKnownGood = new WeakMap<editor.ITextModel, T>()
-  const latestRequests = new WeakMap<editor.ITextModel, symbol>()
+  let lastKnownGood = new WeakMap<editor.ITextModel, T>()
+  let latestRequests = new WeakMap<editor.ITextModel, ModelLayerRequestRecord<T>>()
+  const activeRequests = new Set<ModelLayerRequestRecord<T>>()
 
   return {
     begin(model) {
+      latestRequests.get(model)?.invalidate()
+
       const versionId = model.getVersionId()
       const languageId = model.getLanguageId()
-      const request = Symbol('model-layer-request')
-      latestRequests.set(model, request)
-
-      return {
+      let invalidated = false
+      let resolveInvalidated!: () => void
+      const invalidation = new Promise<void>((resolve) => {
+        resolveInvalidated = resolve
+      })
+      const request: ModelLayerRequestRecord<T> = {
         canCommit: () =>
-          !model.isDisposed()
+          !invalidated
+          && !model.isDisposed()
           && versionId === model.getVersionId()
           && languageId === model.getLanguageId()
           && latestRequests.get(model) === request,
         clearLastKnownGood: () => lastKnownGood.delete(model),
+        complete: () => activeRequests.delete(request),
         getLastKnownGood: () => lastKnownGood.get(model),
+        invalidate() {
+          if (invalidated)
+            return
+
+          invalidated = true
+          activeRequests.delete(request)
+          resolveInvalidated()
+        },
+        invalidated: invalidation,
+        languageId,
         setLastKnownGood: value => lastKnownGood.set(model, value),
       }
+      activeRequests.add(request)
+      latestRequests.set(model, request)
+
+      return request
     },
-    reset(model) {
+    invalidate(model) {
       lastKnownGood.delete(model)
+      latestRequests.get(model)?.invalidate()
       latestRequests.delete(model)
     },
+    clearLastKnownGood(model) {
+      lastKnownGood.delete(model)
+      const request = latestRequests.get(model)
+      if (request && request.languageId !== model.getLanguageId()) {
+        request.invalidate()
+        latestRequests.delete(model)
+      }
+    },
+    invalidateAll() {
+      lastKnownGood = new WeakMap()
+      latestRequests = new WeakMap()
+      for (const request of [...activeRequests])
+        request.invalidate()
+    },
   }
+}
+
+async function raceModelLayerRequest<T>(
+  request: Pick<ModelLayerRequest<never>, 'invalidated'>,
+  operation: Promise<T>,
+): Promise<ModelLayerRequestOutcome<T>> {
+  return await Promise.race([
+    operation.then((value): ModelLayerRequestOutcome<T> => ({ kind: 'result', value })),
+    request.invalidated.then((): ModelLayerRequestOutcome<T> => ({ kind: 'invalidated' })),
+  ])
 }
 
 function colorValueToHex(value: number): string {
@@ -73,19 +139,55 @@ function colorValueToHex(value: number): string {
     .padStart(2, '0')
 }
 
-function createColorClass(color: languages.IColor): string {
-  const hex = `${colorValueToHex(color.red)}${colorValueToHex(color.green)}${colorValueToHex(
-    color.blue,
-  )}`
-  const className = `unocss-color-decoration-${hex}`
+function createColorClassName(color: languages.IColor): string {
+  const hex = [color.red, color.green, color.blue, color.alpha]
+    .map(colorValueToHex)
+    .join('')
+  return `${colorClassPrefix}${hex}`
+}
+
+function retainColorClass(className: string): void {
+  const referenceCount = colorClassReferences.get(className) ?? 0
+  if (referenceCount > 0) {
+    colorClassReferences.set(className, referenceCount + 1)
+    return
+  }
+
   const selector = `.${className}`
   for (const rule of Array.from(sheet.cssRules)) {
     if ((rule as CSSStyleRule).selectorText === selector) {
-      return className
+      colorClassReferences.set(className, 1)
+      return
     }
   }
+
+  const hex = className.slice(colorClassPrefix.length)
   sheet.insertRule(`${selector}{background-color:#${hex}}`)
-  return className
+  colorClassReferences.set(className, 1)
+}
+
+function releaseColorClass(className: string): void {
+  const referenceCount = colorClassReferences.get(className)
+  if (referenceCount === undefined)
+    return
+
+  if (referenceCount > 1) {
+    colorClassReferences.set(className, referenceCount - 1)
+    return
+  }
+
+  colorClassReferences.delete(className)
+  const selector = `.${className}`
+  const ruleIndex = Array.from(sheet.cssRules).findIndex(
+    rule => (rule as CSSStyleRule).selectorText === selector,
+  )
+  if (ruleIndex !== -1)
+    sheet.deleteRule(ruleIndex)
+}
+
+function releaseColorClasses(classNames: ReadonlySet<string>): void {
+  for (const className of classNames)
+    releaseColorClass(className)
 }
 
 function copyCompletionItemData(target: languages.CompletionItem, source: { data?: unknown }): void {
@@ -109,21 +211,30 @@ function fromCompletionItemWithData(item: languages.CompletionItem): LspCompleti
 export function createColorProvider(
   monaco: MonacoEditor,
   getWorker: WorkerAccessor,
-): languages.DocumentColorProvider & IDisposable {
-  const modelMap = new WeakMap<editor.ITextModel, string[]>()
+): ColorProvider {
+  const modelMap = new WeakMap<editor.ITextModel, ModelColorDecorationState>()
   const layerState = createModelLayerState<languages.IColorInformation[]>()
   const models = new Set<editor.ITextModel>()
   let disposed = false
-  const clearModel = (model: editor.ITextModel): void => {
+  const clearModel = (model: editor.ITextModel, invalidate = false): void => {
+    const state = modelMap.get(model)
     if (!model.isDisposed())
-      model.deltaDecorations(modelMap.get(model) ?? [], [])
+      model.deltaDecorations(state?.decorationIds ?? [], [])
+    if (state)
+      releaseColorClasses(state.classNames)
     modelMap.delete(model)
-    layerState.reset(model)
+    if (invalidate)
+      layerState.invalidate(model)
+    else
+      layerState.clearLastKnownGood(model)
     models.delete(model)
   }
   const modelDisposeListener = monaco.editor.onWillDisposeModel((model) => {
+    const state = modelMap.get(model)
+    if (state)
+      releaseColorClasses(state.classNames)
     modelMap.delete(model)
-    layerState.reset(model)
+    layerState.invalidate(model)
     models.delete(model)
   })
   const modelLanguageListener = monaco.editor.onDidChangeModelLanguage(({ model }) => {
@@ -139,7 +250,14 @@ export function createColorProvider(
       modelDisposeListener.dispose()
       modelLanguageListener.dispose()
       for (const model of [...models])
-        clearModel(model)
+        clearModel(model, true)
+      layerState.invalidateAll()
+    },
+
+    reset() {
+      for (const model of [...models])
+        clearModel(model, true)
+      layerState.invalidateAll()
     },
 
     async provideDocumentColors(model) {
@@ -148,58 +266,112 @@ export function createColorProvider(
 
       models.add(model)
       const request = layerState.begin(model)
-      const worker = await getWorker(model.uri)
+      try {
+        const operation = getWorker(model.uri).then((worker) => {
+          if (disposed || !request.canCommit())
+            return undefined
 
-      const result = await worker.getDocumentColors(String(model.uri), model.getLanguageId())
-      if (!request.canCommit())
-        return request.getLastKnownGood()
+          return worker.getDocumentColors(String(model.uri), model.getLanguageId())
+        })
+        const outcome = await raceModelLayerRequest(request, operation)
+        if (outcome.kind === 'invalidated')
+          return disposed ? undefined : request.getLastKnownGood()
 
-      const decision = decidePreserveOrClear(result)
+        if (disposed)
+          return
 
-      if (decision.kind === 'preserve')
-        return request.getLastKnownGood()
+        if (!request.canCommit())
+          return request.getLastKnownGood()
 
-      const editableColors: languages.IColorInformation[] = []
-      const nonEditableColors: editor.IModelDeltaDecoration[] = []
-      if (decision.kind === 'set') {
-        for (const lsColor of decision.items) {
-          const monacoColor = toColorInformation(lsColor)
-          const text = model.getValueInRange(monacoColor.range)
-          if (editableColorRegex.test(text)) {
-            editableColors.push(monacoColor)
-          }
-          else {
-            nonEditableColors.push({
-              range: monacoColor.range,
-              options: {
-                before: {
-                  content: '\u00A0',
-                  inlineClassName: `${createColorClass(monacoColor.color)} colorpicker-color-decoration`,
-                  inlineClassNameAffectsLetterSpacing: true,
+        const decision = decidePreserveOrClear(outcome.value)
+
+        if (decision.kind === 'preserve')
+          return request.getLastKnownGood()
+
+        const editableColors: languages.IColorInformation[] = []
+        const nonEditableColors: editor.IModelDeltaDecoration[] = []
+        const nonEditableColorClasses = new Set<string>()
+        if (decision.kind === 'set') {
+          for (const lsColor of decision.items) {
+            const monacoColor = toColorInformation(lsColor)
+            const text = model.getValueInRange(monacoColor.range)
+            if (parseEditableColorUtility(text)) {
+              editableColors.push(monacoColor)
+            }
+            else {
+              const colorClassName = createColorClassName(monacoColor.color)
+              nonEditableColorClasses.add(colorClassName)
+              nonEditableColors.push({
+                range: monacoColor.range,
+                options: {
+                  before: {
+                    content: '\u00A0',
+                    inlineClassName: `${colorClassName} colorpicker-color-decoration`,
+                    inlineClassNameAffectsLetterSpacing: true,
+                  },
                 },
-              },
-            })
+              })
+            }
           }
         }
+
+        const previousState = modelMap.get(model)
+        const addedClassNames = new Set(
+          [...nonEditableColorClasses]
+            .filter(className => !previousState?.classNames.has(className)),
+        )
+        for (const className of addedClassNames)
+          retainColorClass(className)
+
+        let decorationIds: string[]
+        try {
+          decorationIds = model.deltaDecorations(
+            previousState?.decorationIds ?? [],
+            nonEditableColors,
+          )
+        }
+        catch (error) {
+          releaseColorClasses(addedClassNames)
+          throw error
+        }
+
+        if (!request.canCommit()) {
+          try {
+            if (!model.isDisposed())
+              model.deltaDecorations(decorationIds, [])
+          }
+          finally {
+            releaseColorClasses(addedClassNames)
+          }
+
+          return request.getLastKnownGood()
+        }
+
+        if (previousState) {
+          releaseColorClasses(new Set(
+            [...previousState.classNames]
+              .filter(className => !nonEditableColorClasses.has(className)),
+          ))
+        }
+        modelMap.set(model, { classNames: nonEditableColorClasses, decorationIds })
+        request.setLastKnownGood(editableColors)
+
+        return editableColors
       }
-
-      modelMap.set(model, model.deltaDecorations(modelMap.get(model) ?? [], nonEditableColors))
-      request.setLastKnownGood(editableColors)
-
-      return editableColors
+      finally {
+        request.complete()
+      }
     },
 
     provideColorPresentations(model, colorInformation) {
       const className = model.getValueInRange(colorInformation.range)
-      const match = editableColorRegex.exec(className)
+      const editableColor = parseEditableColorUtility(className)
 
-      if (!match) {
+      if (!editableColor) {
         return []
       }
 
-      const [, currentColor] = match
-
-      const isNamedColor = colorNames.includes(currentColor.toLowerCase())
+      const { color: currentColor, isNamedColor, prefix } = editableColor
       const color = fromRatio({
         r: colorInformation.color.red,
         g: colorInformation.color.green,
@@ -219,7 +391,6 @@ export function createColorProvider(
 
       const rgbValue = color.toRgbString().replaceAll(' ', '')
       const hslValue = color.toHslString().replaceAll(' ', '')
-      const prefix = className.slice(0, Math.max(0, match.index))
 
       return [
         { label: `${prefix}-[${hexValue}]` },
