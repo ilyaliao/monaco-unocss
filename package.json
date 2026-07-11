@@ -66,7 +66,6 @@
     "magic-string": "catalog:prod",
     "monaco-languageserver-types": "catalog:prod",
     "monaco-types": "catalog:prod",
-    "monaco-worker-manager": "catalog:prod",
     "prettier": "catalog:prod",
     "vscode-languageserver-protocol": "catalog:prod",
     "vscode-languageserver-textdocument": "catalog:prod"
@@ -81,6 +80,7 @@
     "bumpp": "catalog:dev",
     "eslint": "catalog:dev",
     "lint-staged": "catalog:dev",
+    "monaco-editor": "catalog:frontend",
     "pnpm": "catalog:dev",
     "simple-git-hooks": "catalog:dev",
     "tsdown": "catalog:dev",

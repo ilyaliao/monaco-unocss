@@ -1,6 +1,5 @@
 // @env browser
-import type { editor, languages, MonacoEditor } from 'monaco-types'
-import type { WorkerGetter } from 'monaco-worker-manager'
+import type { editor, languages, MonacoEditor, Uri } from 'monaco-types'
 import type { CompletionItem as LspCompletionItem } from 'vscode-languageserver-protocol'
 
 import type { UnocssWorker } from './types/worker'
@@ -9,13 +8,14 @@ import {
   fromCompletionContext,
   fromCompletionItem,
   fromPosition,
+  fromRange,
   toColorInformation,
   toCompletionItem,
   toCompletionList,
   toHover,
 } from 'monaco-languageserver-types'
 
-type WorkerAccessor = WorkerGetter<UnocssWorker>
+type WorkerAccessor = (...args: Uri[]) => Promise<UnocssWorker>
 type CompletionItemWithData = languages.CompletionItem & { data?: unknown }
 
 const colorNames = Object.keys(namedColors)
@@ -221,3 +221,4 @@ export function createCompletionItemProvider(
     },
   }
 }
+

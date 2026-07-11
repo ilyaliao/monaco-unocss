@@ -5,7 +5,7 @@ import type { MonacoUnocssOptions, UnocssWorkerOptions } from './types/configure
 import type { UnocssWorker } from './types/worker'
 import { createAutocomplete } from '@unocss/autocomplete'
 import { createGenerator } from '@unocss/core'
-import { initialize as initializeWorker } from 'monaco-worker-manager/worker'
+import { initialize as initializeWorker } from 'monaco-editor/esm/vs/common/initialize.js'
 import { TextDocument } from 'vscode-languageserver-textdocument'
 import { getDocumentColors as getDocumentColorsForDocument } from './worker/colors'
 import { doComplete, resolveCompletionItem } from './worker/complete'
@@ -19,7 +19,7 @@ async function generatorConfig(configPromise: PromiseLike<UserConfig> | UserConf
 }
 
 export function initialize(unocssWorkerOptions?: UnocssWorkerOptions): void {
-  initializeWorker<UnocssWorker, MonacoUnocssOptions>((ctx, options) => {
+  globalThis.onmessage = () => initializeWorker<UnocssWorker, MonacoUnocssOptions>((ctx, options) => {
     const preparedUnocssConfig: UserConfig | PromiseLike<UserConfig>
       = unocssWorkerOptions?.prepareUnocssConfig?.(options.unocssConfig)
         ?? options.unocssConfig

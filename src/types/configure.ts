@@ -1,5 +1,5 @@
 import type { UserConfig } from '@unocss/core'
-import type { IDisposable, languages, MonacoEditor } from 'monaco-types'
+import type { editor, IDisposable, languages, MonacoEditor } from 'monaco-types'
 
 /**
  * A UnoCSS configuration, but without content.
@@ -63,6 +63,29 @@ export interface MonacoUnocss extends IDisposable {
   ) => Promise<string>
 }
 
+export interface MonacoWebWorkerOptions {
+  /**
+   * The data to send over when initializing the worker.
+   */
+  createData?: UnocssWorkerCreateData
+
+  /**
+   * A label to use for MonacoEnvironment worker selection.
+   */
+  label?: string
+
+  /**
+   * The worker module id.
+   */
+  moduleId: string
+}
+
+export type MonacoUnocssMonacoEditor = MonacoEditor & {
+  createWebWorker: <T extends object>(
+    options: MonacoWebWorkerOptions,
+  ) => editor.MonacoWebWorker<T>
+}
+
 /**
  * Configure `monaco-unocss`.
  *
@@ -72,16 +95,9 @@ export interface MonacoUnocss extends IDisposable {
  *   Options for customizing the `monaco-unocss`.
  */
 export type ConfigureMonacoUnocss = (
-  monaco: MonacoEditor,
+  monaco: MonacoUnocssMonacoEditor,
   options?: MonacoUnocssOptions,
 ) => MonacoUnocss
-
-/**
- * This data can be used with the default Monaco CSS support to support UnoCSS directives.
- *
- * It will provide hover information from the UnoCSS documentation, including a link.
- */
-// export const unocssData: languages.css.CSSDataV1
 
 export interface UnocssWorkerOptions {
   /**

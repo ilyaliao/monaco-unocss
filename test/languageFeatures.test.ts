@@ -1,26 +1,8 @@
 import type { editor, languages, MonacoEditor } from 'monaco-types'
-import type { WorkerGetter } from 'monaco-worker-manager'
 import type { ColorInformation } from 'vscode-languageserver-protocol'
 import type { UnocssWorker } from '../src/types/worker'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-
-class MockCSSStyleSheet {
-  cssRules: CSSRule[] = []
-
-  insertRule(rule: string): number {
-    this.cssRules.push({ selectorText: rule.split('{')[0] } as unknown as CSSRule)
-    return this.cssRules.length - 1
-  }
-}
-
-function setupDomGlobals(): void {
-  vi.stubGlobal('CSSStyleSheet', MockCSSStyleSheet)
-  vi.stubGlobal('document', { adoptedStyleSheets: [] })
-}
-
-function createDisposable() {
-  return { dispose: vi.fn() }
-}
+import { createDisposable, setupDomGlobals } from './helpers'
 
 async function loadCreateColorProvider() {
   setupDomGlobals()
@@ -42,7 +24,6 @@ function createColorProviderHarness(options: {
   const worker = {
     getDocumentColors: vi.fn(async () => options.lsColors ?? []),
   } as unknown as UnocssWorker
-  const getWorker = (async () => worker) as unknown as WorkerGetter<UnocssWorker>
   const deltaDecorations = vi.fn(() => [] as string[])
   const model = {
     uri: 'file:///example.html',
@@ -51,7 +32,7 @@ function createColorProviderHarness(options: {
     deltaDecorations,
   } as unknown as editor.ITextModel
 
-  return { monaco, getWorker, model, deltaDecorations }
+  return { monaco, getWorker: async () => worker, model, deltaDecorations }
 }
 
 const lsColor: ColorInformation = {
