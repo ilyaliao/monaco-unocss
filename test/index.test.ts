@@ -1,9 +1,11 @@
 import type { UnoGenerator } from '@unocss/core'
+import { createAutocomplete } from '@unocss/autocomplete'
 import { createGenerator } from '@unocss/core'
 import { presetAttributify, presetWind3 } from 'unocss'
 import { describe, expect, it } from 'vitest'
 import { Range } from 'vscode-languageserver-protocol'
 import { TextDocument } from 'vscode-languageserver-textdocument'
+import { doComplete, resolveCompletionItem } from '../src/worker/complete'
 import { doHover } from '../src/worker/hover'
 
 function createDocument(source: string): TextDocument {
@@ -16,6 +18,14 @@ function positionInside(document: TextDocument, source: string, needle: string) 
     throw new Error(`Missing test needle: ${needle}`)
 
   return document.positionAt(index + Math.floor(needle.length / 2))
+}
+
+function positionAfter(document: TextDocument, source: string, needle: string) {
+  const index = source.indexOf(needle)
+  if (index < 0)
+    throw new Error(`Missing test needle: ${needle}`)
+
+  return document.positionAt(index + needle.length)
 }
 
 function rangeFor(document: TextDocument, source: string, needle: string) {
@@ -36,6 +46,24 @@ function createUno({ attributify = false } = {}): Promise<UnoGenerator> {
       ...(attributify ? [presetAttributify()] : []),
     ],
   })
+}
+
+function getTextEditRange(item: NonNullable<Awaited<ReturnType<typeof doComplete>>>['items'][number]) {
+  const edit = item.textEdit
+
+  if (!edit || !('range' in edit))
+    throw new Error(`Completion item has no TextEdit range: ${item.label}`)
+
+  return edit.range
+}
+
+function getTextEditNewText(item: NonNullable<Awaited<ReturnType<typeof doComplete>>>['items'][number]) {
+  const edit = item.textEdit
+
+  if (!edit || !('newText' in edit))
+    throw new Error(`Completion item has no TextEdit text: ${item.label}`)
+
+  return edit.newText
 }
 
 describe('doHover', () => {
@@ -131,6 +159,117 @@ describe('doHover', () => {
       value: expect.stringContaining('.text-red-5'),
     })
     expect(hover?.contents).toMatchObject({
+      value: expect.stringContaining('[text-red-5=""]'),
+    })
+  })
+})
+
+describe('doComplete', () => {
+  it('replaces exactly the typed prefix and leaves list items undocumented', async () => {
+    const source = '<div class="bg-red-"></div>'
+    const document = createDocument(source)
+    const uno = createUno()
+    const list = await doComplete(
+      document,
+      positionAfter(document, source, 'bg-red-'),
+      createAutocomplete(uno),
+    )
+
+    const item = list?.items.find(item => item.label === 'bg-red-5')
+
+    expect(item).toBeDefined()
+    expect(document.getText(getTextEditRange(item!))).toBe('bg-red-')
+    expect(getTextEditNewText(item!)).toBe('bg-red-5')
+    expect(item).not.toHaveProperty('documentation')
+    expect(item).not.toHaveProperty('detail')
+  })
+
+  it('completes an attributify attribute value', async () => {
+    const source = '<div text="red-"></div>'
+    const document = createDocument(source)
+    const uno = createUno({ attributify: true })
+    const list = await doComplete(
+      document,
+      positionAfter(document, source, 'red-'),
+      createAutocomplete(uno),
+    )
+
+    const item = list?.items.find(item => item.label === 'red-5')
+
+    expect(item).toBeDefined()
+    expect(document.getText(getTextEditRange(item!))).toBe('red-')
+    expect(getTextEditNewText(item!)).toBe('red-5')
+  })
+
+  it('completes a valueless attributify attribute', async () => {
+    const source = '<div text-r'
+    const document = createDocument(source)
+    const uno = createUno({ attributify: true })
+    const list = await doComplete(
+      document,
+      positionAfter(document, source, 'text-r'),
+      createAutocomplete(uno),
+    )
+
+    expect(list?.items.length).toBeGreaterThan(0)
+
+    const item = list?.items.find(item => item.label === 'text-red')
+
+    expect(item).toBeDefined()
+    expect(document.getText(getTextEditRange(item!))).toBe('text-r')
+    expect(getTextEditNewText(item!)).toBe('text-red')
+  })
+})
+
+describe('resolveCompletionItem', () => {
+  it('adds Prettied CSS markdown documentation to a completion item', async () => {
+    const source = '<div class="bg-red-"></div>'
+    const document = createDocument(source)
+    const uno = createUno()
+    const list = await doComplete(
+      document,
+      positionAfter(document, source, 'bg-red-'),
+      createAutocomplete(uno),
+    )
+    const item = list?.items.find(item => item.label === 'bg-red-5')
+
+    expect(item).toBeDefined()
+
+    const resolved = await resolveCompletionItem(item!, uno)
+
+    expect(resolved.documentation).toMatchObject({
+      kind: 'markdown',
+      value: expect.stringContaining('background-color: rgb(239 68 68 / var(--un-bg-opacity));'),
+    })
+    expect(resolved.documentation).toMatchObject({
+      value: expect.stringContaining('```css\n'),
+    })
+  })
+
+  it('returns an unknown utility item unchanged without documentation', async () => {
+    const item = { label: 'not-a-utility' }
+
+    await expect(resolveCompletionItem(item, createUno())).resolves.toBe(item)
+    expect(item).not.toHaveProperty('documentation')
+  })
+
+  it('uses the full utility when resolving an attributify attribute-value completion', async () => {
+    const source = '<div text="red-"></div>'
+    const document = createDocument(source)
+    const uno = createUno({ attributify: true })
+    const list = await doComplete(
+      document,
+      positionAfter(document, source, 'red-'),
+      createAutocomplete(uno),
+    )
+    const item = list?.items.find(item => item.label === 'red-5')
+
+    expect(item).toBeDefined()
+
+    const resolved = await resolveCompletionItem(item!, uno)
+
+    expect(resolved.documentation).toMatchObject({
+      kind: 'markdown',
       value: expect.stringContaining('[text-red-5=""]'),
     })
   })

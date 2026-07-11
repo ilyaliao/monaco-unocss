@@ -1,7 +1,9 @@
 import type { UnocssAutocomplete } from '@unocss/autocomplete'
-import type { CompletionList, Position } from 'vscode-languageserver-protocol'
+import type { UnoGenerator } from '@unocss/core'
+import type { CompletionItem, CompletionList, Position } from 'vscode-languageserver-protocol'
 import type { TextDocument } from 'vscode-languageserver-textdocument'
 import { CompletionItemKind, Range } from 'vscode-languageserver-protocol'
+import { generatePrettiedCssMarkdown } from './prettied-css'
 
 export async function doComplete(document: TextDocument, position: Position, autocomplete: UnocssAutocomplete): Promise<CompletionList | undefined> {
   const content = document?.getText()
@@ -18,12 +20,12 @@ export async function doComplete(document: TextDocument, position: Position, aut
 
   return {
     isIncomplete: false,
-    items: result.suggestions.map(([value, label], i) => {
+    items: result.suggestions.map(([value, label]) => {
       const resolved = result.resolveReplacement(value)
       return {
         label,
         kind: CompletionItemKind.Constant,
-        data: i,
+        data: { value },
         textEdit: {
           newText: resolved.replacement,
           range: Range.create(
@@ -33,5 +35,46 @@ export async function doComplete(document: TextDocument, position: Position, aut
         },
       }
     }),
+  }
+}
+
+function getCompletionItemUtility(item: CompletionItem): string | undefined {
+  const data = item.data as { value?: unknown } | undefined
+
+  if (typeof data?.value === 'string')
+    return data.value
+
+  if (typeof item.label === 'string')
+    return item.label
+}
+
+export async function resolveCompletionItem(
+  item: CompletionItem,
+  generator: Promise<UnoGenerator<object>>,
+): Promise<CompletionItem> {
+  const utility = getCompletionItemUtility(item)
+
+  if (!utility)
+    return item
+
+  let uno: UnoGenerator<object>
+  try {
+    uno = await generator
+  }
+  catch {
+    return item
+  }
+
+  const value = await generatePrettiedCssMarkdown(uno, utility)
+
+  if (!value)
+    return item
+
+  return {
+    ...item,
+    documentation: {
+      kind: 'markdown',
+      value,
+    },
   }
 }

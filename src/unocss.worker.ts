@@ -5,7 +5,7 @@ import { createAutocomplete } from '@unocss/autocomplete'
 import { createGenerator } from '@unocss/core'
 import { initialize as initializeWorker } from 'monaco-worker-manager/worker'
 import { TextDocument } from 'vscode-languageserver-textdocument'
-import { doComplete } from './worker/complete'
+import { doComplete, resolveCompletionItem } from './worker/complete'
 import { doHover } from './worker/hover'
 
 async function generatorConfig(configPromise: PromiseLike<UserConfig> | UserConfig, defaultConfig: UserConfigDefaults): Promise<UnoGenerator<object>> {
@@ -62,9 +62,7 @@ export function initialize(unocssWorkerOptions?: UnocssWorkerOptions): void {
       getDocumentColors: withDocument(() => undefined),
 
       async resolveCompletionItem(item) {
-        // eslint-disable-next-line no-console
-        console.log('resolveCompletionItem', item)
-        return undefined
+        return resolveCompletionItem(item, __uno)
       },
     }
   })

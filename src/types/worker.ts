@@ -20,5 +20,5 @@ export interface UnocssWorker {
 
   getDocumentColors: (uri: string, languageId: string) => any
 
-  resolveCompletionItem: (item: CompletionItem) => any
+  resolveCompletionItem: (item: CompletionItem) => Promise<CompletionItem | undefined>
 }

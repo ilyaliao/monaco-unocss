@@ -1,6 +1,6 @@
 import type { editor, languages, MonacoEditor } from 'monaco-types'
 import type { WorkerGetter } from 'monaco-worker-manager'
-import type { ColorInformation } from 'vscode-languageserver-protocol'
+import type { ColorInformation, CompletionItem as LspCompletionItem } from 'vscode-languageserver-protocol'
 
 import type { UnocssWorker } from './types/worker'
 import { fromRatio, names as namedColors } from '@ctrl/tinycolor'
@@ -15,6 +15,7 @@ import {
 } from 'monaco-languageserver-types'
 
 type WorkerAccessor = WorkerGetter<UnocssWorker>
+type CompletionItemWithData = languages.CompletionItem & { data?: unknown }
 
 const colorNames = Object.values(namedColors)
 const editableColorRegex = new RegExp(
@@ -42,6 +43,24 @@ function createColorClass(color: languages.IColor): string {
   }
   sheet.insertRule(`${selector}{background-color:#${hex}}`)
   return className
+}
+
+function copyCompletionItemData(target: languages.CompletionItem, source: { data?: unknown }): void {
+  if (source.data === undefined)
+    return
+
+  const targetWithData = target as CompletionItemWithData
+  targetWithData.data = source.data
+}
+
+function fromCompletionItemWithData(item: languages.CompletionItem): LspCompletionItem {
+  const result = fromCompletionItem(item)
+  const data = (item as CompletionItemWithData).data
+
+  if (data !== undefined)
+    result.data = data
+
+  return result
 }
 
 export function createColorProvider(
@@ -169,7 +188,7 @@ export function createCompletionItemProvider(
 
       const wordInfo = model.getWordUntilPosition(position)
 
-      return toCompletionList(completionList, {
+      const result = toCompletionList(completionList, {
         range: {
           startLineNumber: position.lineNumber,
           startColumn: wordInfo.startColumn,
@@ -177,14 +196,30 @@ export function createCompletionItemProvider(
           endColumn: wordInfo.endColumn,
         },
       })
+
+      for (const [index, item] of result.suggestions.entries()) {
+        const sourceItem = completionList.items[index]
+
+        if (sourceItem)
+          copyCompletionItemData(item, sourceItem)
+      }
+
+      return result
     },
 
     async resolveCompletionItem(item) {
       const worker = await getWorker()
 
-      const result = await worker.resolveCompletionItem(fromCompletionItem(item))
+      const result = await worker.resolveCompletionItem(fromCompletionItemWithData(item))
 
-      return toCompletionItem(result, { range: item.range })
+      if (!result) {
+        return item
+      }
+
+      const resolved = toCompletionItem(result, { range: item.range })
+      copyCompletionItemData(resolved, result)
+
+      return resolved
     },
   }
 }
