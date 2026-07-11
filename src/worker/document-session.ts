@@ -4,7 +4,6 @@ import type { TextDocument as TextDocumentType } from 'vscode-languageserver-tex
 import { createAutocomplete } from '@unocss/autocomplete'
 import { createGenerator } from '@unocss/core'
 import { TextDocument } from 'vscode-languageserver-textdocument'
-import { defaultIdeMatchExclude, defaultIdeMatchInclude } from '../vendor/defaults-ide'
 import { getMatchedPositionsFromCode } from '../vendor/match-positions'
 
 export type MatchedPosition = readonly [start: number, end: number, text: string]
@@ -35,6 +34,7 @@ interface MirrorModel {
 interface MatchedPositionsCacheEntry {
   contentFingerprint: string
   entryToken: symbol
+  languageId: string
   modelGeneration: ModelGeneration
   positions: Promise<MatchedPosition[] | undefined>
   version: number
@@ -64,10 +64,7 @@ async function computeMatchedPositions(
   uno: UnoGenerator<object>,
   document: TextDocumentType,
 ): Promise<MatchedPosition[]> {
-  return await getMatchedPositionsFromCode(uno, document.getText(), document.uri, {
-    includeRegex: defaultIdeMatchInclude,
-    excludeRegex: defaultIdeMatchExclude,
-  })
+  return await getMatchedPositionsFromCode(uno, document.getText(), document.uri)
 }
 
 export function createDocumentSessionFactory(
@@ -137,6 +134,7 @@ export function createDocumentSessionFactory(
       cached?.modelGeneration === modelGeneration
       && cached.version === document.version
       && cached.contentFingerprint === contentFingerprint
+      && cached.languageId === document.languageId
     ) {
       return cached.positions
     }
@@ -152,6 +150,7 @@ export function createDocumentSessionFactory(
     const entry: MatchedPositionsCacheEntry = {
       contentFingerprint,
       entryToken,
+      languageId: document.languageId,
       modelGeneration,
       positions,
       version: document.version,

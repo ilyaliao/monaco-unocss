@@ -864,7 +864,7 @@ describe('generateStylesFromContent', () => {
     const { factory } = createTestSession('')
     const css = await generateStylesFromContent(
       factory,
-      ['<div class="mt-2 text-red-5"></div>'],
+      [{ content: '<div class="mt-2 text-red-5"></div>' }],
       { preflights: false, safelist: false },
     )
 
@@ -905,7 +905,7 @@ describe('generateStylesFromContent', () => {
     })
     const css = await generateStylesFromContent(
       factory,
-      ['<button class="btn-primary"></button>'],
+      [{ content: '<button class="btn-primary"></button>' }],
       { preflights: false, safelist: false },
     )
 
@@ -924,7 +924,7 @@ describe('generateStylesFromContent', () => {
     })
     const css = await generateStylesFromContent(
       factory,
-      ['<div class="hover:(mt-2 text-red-5)"></div>'],
+      [{ content: '<div class="hover:(mt-2 text-red-5)"></div>' }],
       { preflights: false, safelist: false },
     )
 
@@ -945,12 +945,12 @@ describe('generateStylesFromContent', () => {
 
     const withPreflights = await generateStylesFromContent(
       factory,
-      ['<div></div>'],
+      [{ content: '<div></div>' }],
       { preflights: true, safelist: false },
     )
     const withoutPreflights = await generateStylesFromContent(
       factory,
-      ['<div></div>'],
+      [{ content: '<div></div>' }],
       { preflights: false, safelist: false },
     )
 
@@ -963,12 +963,12 @@ describe('generateStylesFromContent', () => {
 
     const readable = await generateStylesFromContent(
       factory,
-      ['<div class="mt-2"></div>'],
+      [{ content: '<div class="mt-2"></div>' }],
       { preflights: false, safelist: false, minify: false },
     )
     const minified = await generateStylesFromContent(
       factory,
-      ['<div class="mt-2"></div>'],
+      [{ content: '<div class="mt-2"></div>' }],
       { preflights: false, safelist: false, minify: true },
     )
 
@@ -1053,7 +1053,7 @@ describe('generateStylesFromContent', () => {
     await expect(
       generateStylesFromContent(
         factory,
-        ['plain text only'],
+        [{ content: 'plain text only' }],
         { preflights: false, safelist: false },
       ),
     ).resolves.toBe('')
@@ -1071,7 +1071,7 @@ describe('generateStylesFromContent', () => {
     await expect(
       generateStylesFromContent(
         factory,
-        ['plain text only'],
+        [{ content: 'plain text only' }],
         { preflights: true, safelist: false },
       ),
     ).resolves.toContain('--uno-ready:1')

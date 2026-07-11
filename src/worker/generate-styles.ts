@@ -1,9 +1,11 @@
-import type { SourceCodeTransformer, UnoGenerator } from '@unocss/core'
 import type { Content, GenerateStylesFromContentOptions } from '../types/configure'
 import type { DocumentSessionFactory } from './document-session'
-import MagicString from 'magic-string'
+import {
+  createSourceTransformerRunner,
+  withoutSkippedSource,
+} from './source-transformers'
 
-const transformerEnforceOrder = ['pre', 'default', 'post'] as const
+const fallbackContentId = 'monaco-unocss-content'
 
 class UnoGeneratorInitializationError extends Error {
   override name = 'UnoGeneratorInitializationError'
@@ -26,51 +28,12 @@ function contentIdForExtension(extension: string | undefined): string | undefine
   if (!normalized)
     return undefined
 
-  return `monaco-unocss-content.${normalized}`
-}
-
-function normalizeContent(content: Content | string): Content {
-  return typeof content === 'string' ? { content } : content
-}
-
-function shouldTransform(transformer: SourceCodeTransformer, code: string, id: string): boolean {
-  if (transformer.idFilter && !transformer.idFilter(id))
-    return false
-
-  return transformer.codeFilter?.(code, id) ?? true
-}
-
-async function applyTransformers(
-  uno: UnoGenerator<object>,
-  code: string,
-  id: string,
-  tokens: Set<string>,
-): Promise<string> {
-  const transformers = uno.config.transformers ?? []
-
-  if (transformers.length === 0)
-    return code
-
-  const transformed = new MagicString(code)
-  const context = {
-    invalidate() {},
-    tokens,
-    uno,
-  } as Parameters<SourceCodeTransformer['transform']>[2]
-
-  for (const enforce of transformerEnforceOrder) {
-    for (const transformer of transformers.filter(i => (i.enforce ?? 'default') === enforce)) {
-      if (shouldTransform(transformer, transformed.toString(), id))
-        await transformer.transform(transformed, id, context)
-    }
-  }
-
-  return transformed.toString()
+  return `${fallbackContentId}.${normalized}`
 }
 
 export async function generateStylesFromContent(
   factory: DocumentSessionFactory,
-  contents: (Content | string)[],
+  contents: Content[],
   options?: GenerateStylesFromContentOptions,
 ): Promise<string> {
   const generatorResult = await factory.getGeneratorResult()
@@ -80,19 +43,20 @@ export async function generateStylesFromContent(
   const uno = generatorResult.generator
 
   const tokens = new Set<string>()
+  const transformSource = createSourceTransformerRunner(uno, tokens)
 
-  for (const content of contents) {
-    const entry = normalizeContent(content)
+  for (const entry of contents) {
     const extractorId = contentIdForExtension(entry.extension)
-    const transformedContent = await applyTransformers(
-      uno,
+    const transformed = await transformSource(
       entry.content,
-      extractorId ?? 'monaco-unocss-content',
-      tokens,
+      extractorId ?? fallbackContentId,
     )
 
+    if (transformed.ignored)
+      continue
+
     await uno.applyExtractors(
-      transformedContent,
+      withoutSkippedSource(transformed.code),
       extractorId,
       tokens,
     )

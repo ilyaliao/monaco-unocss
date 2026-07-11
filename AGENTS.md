@@ -119,6 +119,7 @@ Vendored or adapted logic lives under `src/vendor/*`.
 - `defaults-ide.ts`
 - `extractor-arbitrary-variants.ts`
 - `match-positions.ts`
+- `source-transformers.ts`
 - `color.ts`
 - `css.ts`
 

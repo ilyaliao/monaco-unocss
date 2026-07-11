@@ -56,3 +56,34 @@ describe('document session generator initialization', () => {
     expect(error).toHaveBeenCalledOnce()
   })
 })
+
+describe('document session language identity', () => {
+  it('recomputes matched positions when only the model language changes', async () => {
+    const source = 'div.float-left'
+    const languageUri = 'file:///language-switch.html'
+    const model = { getValue: () => source, uri: languageUri, version: 0 }
+    const factory = createDocumentSessionFactory(
+      () => [model],
+      {
+        blocklist: [/^float-/],
+        extractors: [{
+          name: 'pug',
+          extract(context) {
+            context.code = '<div class="float-left"></div>'
+          },
+        }],
+        presets: [presetWind3()],
+      },
+    )
+
+    const htmlPositions = await factory
+      .resolveDocument(languageUri, 'html')!
+      .getMatchedPositions()
+    const pugPositions = await factory
+      .resolveDocument(languageUri, 'pug')!
+      .getMatchedPositions()
+
+    expect(htmlPositions).toEqual([])
+    expect(pugPositions).toEqual([[4, 14, 'float-left']])
+  })
+})
