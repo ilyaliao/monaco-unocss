@@ -150,9 +150,10 @@ pnpm settings and workspace globs live in `pnpm-workspace.yaml`.
 - `pnpm test`: run Vitest.
 - `pnpm typecheck`: run `tsc --noEmit`.
 - `pnpm lint`: run ESLint.
-- `pnpm play`: run the Vite example.
+- `pnpm play`: run the interactive playground.
 
-For Monaco integration checks, start the example with `pnpm play` and test the editor in the browser.
+For playground integration checks, start it with `pnpm play` and test all three panes in the browser.
+For the minimal Vite example, run `pnpm --dir examples/vite dev`.
 For production worker bundling checks, run `pnpm --dir examples/vite exec vite build`.
 
 ## Release

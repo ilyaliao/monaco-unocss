@@ -1,0 +1,18 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "jsx": "preserve",
+    "paths": {
+      "monaco-unocss": ["../src/index.ts"],
+      "monaco-unocss/unocss.worker": ["../src/unocss.worker.ts"]
+    },
+    "types": ["vite/client"]
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "src/**/*.vue",
+    "uno.config.ts",
+    "vite.config.ts"
+  ]
+}

@@ -47,7 +47,7 @@
   "scripts": {
     "build": "tsdown",
     "watch": "tsdown --watch",
-    "play": "nr -C examples/vite dev",
+    "play": "nr -C playground dev",
     "lint": "eslint .",
     "prepack": "pnpm build",
     "release": "bumpp -r",
