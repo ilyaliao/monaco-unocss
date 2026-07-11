@@ -6,6 +6,7 @@ import type { DocumentSession } from './worker/document-session'
 import { initialize as initializeWorker } from 'monaco-editor/esm/vs/common/initialize.js'
 import { getDocumentColors as getDocumentColorsForDocument } from './worker/colors'
 import { doComplete, resolveCompletionItem } from './worker/complete'
+import { runDocumentLayerFeature } from './worker/document-feature-result'
 import { createDocumentSessionFactory } from './worker/document-session'
 import { generateStylesFromContent } from './worker/generate-styles'
 import { doHover } from './worker/hover'
@@ -47,7 +48,10 @@ export function initialize(unocssWorkerOptions?: UnocssWorkerOptions): void {
       generateStylesFromContent: (content, options) =>
         generateStylesFromContent(sessionFactory, content, options),
 
-      getDocumentColors: withSession(getDocumentColorsForDocument),
+      getDocumentColors: (uri, languageId) => runDocumentLayerFeature(
+        sessionFactory.resolveDocument(uri, languageId),
+        getDocumentColorsForDocument,
+      ),
 
       resolveCompletionItem: item => resolveCompletionItem(sessionFactory, item),
     }

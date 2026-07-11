@@ -83,7 +83,10 @@ export function createDocumentSessionFactory(
   const getGeneratorResult = (): Promise<GeneratorInitializationResult> =>
     generatorResult ??= createUnoGenerator(unocssConfig).then(
       (generator): GeneratorInitializationResult => ({ generator }),
-      (cause): GeneratorInitializationResult => ({ cause }),
+      (cause): GeneratorInitializationResult => {
+        console.error('monaco-unocss failed to initialize the UnoCSS generator', cause)
+        return { cause }
+      },
     )
 
   const getGenerator = (): Promise<UnoGenerator<object> | undefined> =>

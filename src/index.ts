@@ -29,7 +29,13 @@ export const configureMonacoUnocss: ConfigureMonacoUnocss
   = (monaco, { languageSelector = defaultLanguageSelector, unocssConfig } = {}) => {
     const createWebWorker = getCreateWebWorker(monaco)
     let createData: MonacoUnocssOptions = { unocssConfig }
+    let disposed = false
     let worker: editor.MonacoWebWorker<UnocssWorker> | undefined
+
+    const assertNotDisposed = (): void => {
+      if (disposed)
+        throw new Error('monaco-unocss integration has been disposed')
+    }
 
     const disposeWorker = (): void => {
       worker?.dispose()
@@ -37,6 +43,8 @@ export const configureMonacoUnocss: ConfigureMonacoUnocss
     }
 
     const getWorker = (...resources: Uri[]): Promise<UnocssWorker> => {
+      assertNotDisposed()
+
       worker ??= createWebWorker<UnocssWorker>({
         createData,
         label: 'unocss',
@@ -50,12 +58,28 @@ export const configureMonacoUnocss: ConfigureMonacoUnocss
       dispose: disposeWorker,
     }
 
+    const colorProvider = createColorProvider(monaco, getWorker)
+    let colorProviderRegistration = monaco.languages.registerColorProvider(
+      languageSelector,
+      colorProvider,
+    )
+    const colorProviderDisposable: IDisposable = {
+      dispose() {
+        colorProviderRegistration.dispose()
+      },
+    }
+    const refreshColorProvider = (): void => {
+      colorProviderRegistration.dispose()
+      colorProviderRegistration = monaco.languages.registerColorProvider(
+        languageSelector,
+        colorProvider,
+      )
+    }
+
     const disposables = [
       workerDisposable,
-      monaco.languages.registerColorProvider(
-        languageSelector,
-        createColorProvider(monaco, getWorker),
-      ),
+      colorProviderDisposable,
+      colorProvider,
       monaco.languages.registerCompletionItemProvider(
         languageSelector,
         createCompletionItemProvider(getWorker),
@@ -68,14 +92,20 @@ export const configureMonacoUnocss: ConfigureMonacoUnocss
 
     return {
       dispose() {
+        if (disposed)
+          return
+
+        disposed = true
         for (const disposable of disposables) {
           disposable.dispose()
         }
       },
 
-      setUnocssConfig: (newUnocssConfig: UserConfig) => {
+      async setUnocssConfig(newUnocssConfig: UserConfig) {
+        assertNotDisposed()
         createData = { unocssConfig: newUnocssConfig }
         disposeWorker()
+        refreshColorProvider()
       },
 
       async generateStylesFromContent(contents, options) {

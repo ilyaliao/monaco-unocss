@@ -43,8 +43,10 @@ export interface MonacoUnocss extends IDisposable {
    *
    * @param unocssConfig
    *   The new UnoCSS configuration.
+   * @returns
+   *   A promise that resolves once open documents have been revalidated.
    */
-  setUnocssConfig: (unocssConfig: UnocssConfig) => void
+  setUnocssConfig: (unocssConfig: UnocssConfig) => Promise<void>
 
   /**
    * Generate a stylesheet from arbitrary contents using the worker's UnoCSS config.

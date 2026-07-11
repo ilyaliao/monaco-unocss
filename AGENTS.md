@@ -71,7 +71,7 @@ Keep these files aligned with `src/index.ts`, `src/unocss.worker.ts`, tests, and
 - `mdx`
 - `typescript`
 
-Marker data providers are only registered when the language selector item is a string. Monaco has no general matcher for all `languages.LanguageSelector` shapes here.
+A single marker data provider is registered for the string items of the language selector. Monaco has no general matcher for all `languages.LanguageSelector` shapes here. `setUnocssConfig()` disposes the worker and revalidates that provider so markers refresh without a document edit.
 
 ## Diagnostics
 
@@ -106,7 +106,9 @@ sequenceDiagram
   Session->>Uno: initialize, match, or generate
   Uno-->>Session: generated CSS and metadata
   Session-->>Feature: dependency result or undefined
-  Feature-->>Adapter: LSP-style result
+  Feature-->>Worker: LSP-style result or undefined
+  Worker-->>Adapter: direct result, or WorkerFeatureResult for colors / markers
+  Adapter->>Adapter: preserve, clear, or update colors / markers
   Adapter-->>Monaco: Monaco result
 ```
 

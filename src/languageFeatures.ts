@@ -1,5 +1,5 @@
 // @env browser
-import type { editor, languages, MonacoEditor, Uri } from 'monaco-types'
+import type { editor, IDisposable, languages, MonacoEditor, Uri } from 'monaco-types'
 import type { CompletionItem as LspCompletionItem } from 'vscode-languageserver-protocol'
 
 import type { UnocssWorker } from './types/worker'
@@ -13,9 +13,22 @@ import {
   toCompletionList,
   toHover,
 } from 'monaco-languageserver-types'
+import { decidePreserveOrClear } from './preserve-or-clear'
 
 type WorkerAccessor = (...args: Uri[]) => Promise<UnocssWorker>
 type CompletionItemWithData = languages.CompletionItem & { data?: unknown }
+
+interface ModelLayerRequest<T> {
+  canCommit: () => boolean
+  clearLastKnownGood: () => void
+  getLastKnownGood: () => T | undefined
+  setLastKnownGood: (value: T) => void
+}
+
+interface ModelLayerState<T> {
+  begin: (model: editor.ITextModel) => ModelLayerRequest<T>
+  reset: (model: editor.ITextModel) => void
+}
 
 const colorNames = Object.keys(namedColors)
 const editableColorRegex = new RegExp(
@@ -24,6 +37,35 @@ const editableColorRegex = new RegExp(
 )
 const sheet = new CSSStyleSheet()
 document.adoptedStyleSheets.push(sheet)
+
+function createModelLayerState<T>(): ModelLayerState<T> {
+  const lastKnownGood = new WeakMap<editor.ITextModel, T>()
+  const latestRequests = new WeakMap<editor.ITextModel, symbol>()
+
+  return {
+    begin(model) {
+      const versionId = model.getVersionId()
+      const languageId = model.getLanguageId()
+      const request = Symbol('model-layer-request')
+      latestRequests.set(model, request)
+
+      return {
+        canCommit: () =>
+          !model.isDisposed()
+          && versionId === model.getVersionId()
+          && languageId === model.getLanguageId()
+          && latestRequests.get(model) === request,
+        clearLastKnownGood: () => lastKnownGood.delete(model),
+        getLastKnownGood: () => lastKnownGood.get(model),
+        setLastKnownGood: value => lastKnownGood.set(model, value),
+      }
+    },
+    reset(model) {
+      lastKnownGood.delete(model)
+      latestRequests.delete(model)
+    },
+  }
+}
 
 function colorValueToHex(value: number): string {
   return Math.round(value * 255)
@@ -67,22 +109,60 @@ function fromCompletionItemWithData(item: languages.CompletionItem): LspCompleti
 export function createColorProvider(
   monaco: MonacoEditor,
   getWorker: WorkerAccessor,
-): languages.DocumentColorProvider {
+): languages.DocumentColorProvider & IDisposable {
   const modelMap = new WeakMap<editor.ITextModel, string[]>()
-
-  monaco.editor.onWillDisposeModel((model) => {
+  const layerState = createModelLayerState<languages.IColorInformation[]>()
+  const models = new Set<editor.ITextModel>()
+  let disposed = false
+  const clearModel = (model: editor.ITextModel): void => {
+    if (!model.isDisposed())
+      model.deltaDecorations(modelMap.get(model) ?? [], [])
     modelMap.delete(model)
+    layerState.reset(model)
+    models.delete(model)
+  }
+  const modelDisposeListener = monaco.editor.onWillDisposeModel((model) => {
+    modelMap.delete(model)
+    layerState.reset(model)
+    models.delete(model)
+  })
+  const modelLanguageListener = monaco.editor.onDidChangeModelLanguage(({ model }) => {
+    clearModel(model)
   })
 
   return {
+    dispose() {
+      if (disposed)
+        return
+
+      disposed = true
+      modelDisposeListener.dispose()
+      modelLanguageListener.dispose()
+      for (const model of [...models])
+        clearModel(model)
+    },
+
     async provideDocumentColors(model) {
+      if (disposed)
+        return
+
+      models.add(model)
+      const request = layerState.begin(model)
       const worker = await getWorker(model.uri)
+
+      const result = await worker.getDocumentColors(String(model.uri), model.getLanguageId())
+      if (!request.canCommit())
+        return request.getLastKnownGood()
+
+      const decision = decidePreserveOrClear(result)
+
+      if (decision.kind === 'preserve')
+        return request.getLastKnownGood()
 
       const editableColors: languages.IColorInformation[] = []
       const nonEditableColors: editor.IModelDeltaDecoration[] = []
-      const colors = await worker.getDocumentColors(String(model.uri), model.getLanguageId())
-      if (colors) {
-        for (const lsColor of Array.from(colors)) {
+      if (decision.kind === 'set') {
+        for (const lsColor of decision.items) {
           const monacoColor = toColorInformation(lsColor)
           const text = model.getValueInRange(monacoColor.range)
           if (editableColorRegex.test(text)) {
@@ -104,6 +184,7 @@ export function createColorProvider(
       }
 
       modelMap.set(model, model.deltaDecorations(modelMap.get(model) ?? [], nonEditableColors))
+      request.setLastKnownGood(editableColors)
 
       return editableColors
     },
