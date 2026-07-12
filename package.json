@@ -45,12 +45,12 @@
     "prepare": "simple-git-hooks"
   },
   "peerDependencies": {
+    "@unocss/autocomplete": ">=66",
+    "@unocss/core": ">=66",
     "monaco-editor": ">=0.36"
   },
   "dependencies": {
     "@ctrl/tinycolor": "^4.1.0",
-    "@unocss/autocomplete": "^66.2.0",
-    "@unocss/core": "^66.2.0",
     "monaco-languageserver-types": "^0.4.0",
     "monaco-marker-data-provider": "^1.2.4",
     "monaco-types": "^0.1.0",
@@ -63,6 +63,8 @@
     "@antfu/ni": "^25.0.0",
     "@antfu/utils": "^9.2.0",
     "@types/node": "^24.0.1",
+    "@unocss/autocomplete": "^66.2.0",
+    "@unocss/core": "^66.2.0",
     "bumpp": "^10.1.1",
     "eslint": "^9.29.0",
     "esno": "^4.8.0",
