@@ -56,19 +56,19 @@ export interface MonacoUnocss extends IDisposable {
  */
 export type ConfigureMonacoUnocss = (
   monaco: MonacoEditor,
-  options?: MonacoUnocssOptions
+  options?: MonacoUnocssOptions,
 ) => MonacoUnocss
 
 /**
  * This data can be used with the default Monaco CSS support to support UnoCSS directives.
  *
- * It will provider hover information from the Tailwindcss documentation, including a link.
+ * It will provide hover information from the UnoCSS documentation, including a link.
  */
 // export const unocssData: languages.css.CSSDataV1
 
 export interface UnocssWorkerOptions {
   /**
-   * Hook that will run before the tailwind config is used.
+   * Hook that will run before the UnoCSS config is used.
    *
    * @param unocssConfig
    *   The UnoCSS configuration passed from the main thread.

@@ -1,6 +1,7 @@
 import type { UnocssAutocomplete } from '@unocss/autocomplete'
+import type { CompletionList, Position } from 'vscode-languageserver-protocol'
 import type { TextDocument } from 'vscode-languageserver-textdocument'
-import { CompletionItemKind, type CompletionList, type Position, Range } from 'vscode-languageserver-protocol'
+import { CompletionItemKind, Range } from 'vscode-languageserver-protocol'
 
 export async function doComplete(document: TextDocument, position: Position, autocomplete: UnocssAutocomplete): Promise<CompletionList | undefined> {
   const content = document?.getText()

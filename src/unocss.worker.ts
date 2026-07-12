@@ -16,9 +16,9 @@ async function generatorConfig(configPromise: PromiseLike<UserConfig> | UserConf
 export function initialize(unocssWorkerOptions?: UnocssWorkerOptions): void {
   initializeWorker<UnocssWorker, MonacoUnocssOptions>((ctx, options) => {
     const preparedUnocssConfig: UserConfig | PromiseLike<UserConfig>
-          = unocssWorkerOptions?.prepareUnocssConfig?.(options.unocssConfig)
-            ?? options.unocssConfig
-            ?? ({} as UserConfig)
+      = unocssWorkerOptions?.prepareUnocssConfig?.(options.unocssConfig)
+        ?? options.unocssConfig
+        ?? ({} as UserConfig)
     if (typeof preparedUnocssConfig !== 'object') {
       throw new TypeError(
         `Expected unocssConfig to resolve to an object, but got: ${JSON.stringify(
@@ -49,16 +49,9 @@ export function initialize(unocssWorkerOptions?: UnocssWorkerOptions): void {
         }
 
     return {
-      doCodeActions: withDocument((_textDocument, _range, _context) =>
-        // doCodeActions(state, { range, context, textDocument }, textDocument),
-        undefined,
-      ),
-
       doComplete: withDocument((document, position) => doComplete(document, position, autocomplete)),
 
       doHover: withDocument((document, position) => doHover(document, position, __uno)),
-
-      doValidate: withDocument(() => undefined),
 
       async generateStylesFromContent(css, content) {
         // eslint-disable-next-line no-console

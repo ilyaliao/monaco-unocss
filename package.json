@@ -52,7 +52,6 @@
   "dependencies": {
     "@ctrl/tinycolor": "^4.1.0",
     "monaco-languageserver-types": "^0.4.0",
-    "monaco-marker-data-provider": "^1.2.4",
     "monaco-types": "^0.1.0",
     "monaco-worker-manager": "^2.0.1",
     "vscode-languageserver-protocol": "^3.17.5",

@@ -1,4 +1,3 @@
-import type { MarkerDataProvider } from 'monaco-marker-data-provider'
 import type { editor, languages, MonacoEditor } from 'monaco-types'
 import type { WorkerGetter } from 'monaco-worker-manager'
 import type { ColorInformation } from 'vscode-languageserver-protocol'
@@ -6,17 +5,13 @@ import type { ColorInformation } from 'vscode-languageserver-protocol'
 import type { UnocssWorker } from './types/worker'
 import { fromRatio, names as namedColors } from '@ctrl/tinycolor'
 import {
-  fromCodeActionContext,
   fromCompletionContext,
   fromCompletionItem,
   fromPosition,
-  fromRange,
-  toCodeAction,
   toColorInformation,
   toCompletionItem,
   toCompletionList,
   toHover,
-  toMarkerData,
 } from 'monaco-languageserver-types'
 
 type WorkerAccessor = WorkerGetter<UnocssWorker>
@@ -38,7 +33,7 @@ function createColorClass(color: languages.IColor): string {
   const hex = `${colorValueToHex(color.red)}${colorValueToHex(color.green)}${colorValueToHex(
     color.blue,
   )}`
-  const className = `tailwindcss-color-decoration-${hex}`
+  const className = `unocss-color-decoration-${hex}`
   const selector = `.${className}`
   for (const rule of Array.from(sheet.cssRules)) {
     if ((rule as CSSStyleRule).selectorText === selector) {
@@ -154,31 +149,6 @@ export function createHoverProvider(getWorker: WorkerAccessor): languages.HoverP
   }
 }
 
-export function createCodeActionProvider(getWorker: WorkerAccessor): languages.CodeActionProvider {
-  return {
-    async provideCodeActions(model, range, context) {
-      const worker = await getWorker(model.uri)
-
-      // TODO: wait implementation of getCodeActions in worker
-      const codeActions: any = await worker.doCodeActions(
-        String(model.uri),
-        model.getLanguageId(),
-        fromRange(range),
-        fromCodeActionContext(context),
-      )
-
-      if (codeActions) {
-        return {
-          actions: codeActions.map(toCodeAction),
-          dispose() {
-            // Do nothing
-          },
-        }
-      }
-    },
-  }
-}
-
 export function createCompletionItemProvider(
   getWorker: WorkerAccessor,
 ): languages.CompletionItemProvider {
@@ -215,19 +185,6 @@ export function createCompletionItemProvider(
       const result = await worker.resolveCompletionItem(fromCompletionItem(item))
 
       return toCompletionItem(result, { range: item.range })
-    },
-  }
-}
-
-export function createMarkerDataProvider(getWorker: WorkerAccessor): MarkerDataProvider {
-  return {
-    owner: 'tailwindcss',
-    async provideMarkerData(model) {
-      const worker = await getWorker(model.uri)
-
-      const diagnostics = await worker.doValidate(String(model.uri), model.getLanguageId())
-
-      return diagnostics?.map(toMarkerData)
     },
   }
 }
