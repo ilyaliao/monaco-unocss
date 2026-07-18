@@ -4,6 +4,7 @@ import type { configureMonacoUnocss, UnocssConfig } from '../src/index'
 import type { Content } from '../src/types/configure'
 import type { UnocssWorker } from '../src/types/worker'
 import type { UnocssWorkerOptions } from '../src/unocss.worker'
+import { fileURLToPath } from 'node:url'
 import { guardStaleBuild } from 'tsdown-stale-guard'
 import { snapshotApiPerEntry } from 'tsnapi/vitest'
 import { beforeAll, describe, expectTypeOf, it } from 'vitest'
@@ -13,7 +14,7 @@ describe('api', async () => {
     await guardStaleBuild()
   })
 
-  await snapshotApiPerEntry(new URL('..', import.meta.url).pathname)
+  await snapshotApiPerEntry(fileURLToPath(new URL('..', import.meta.url)))
 })
 
 it('publishes string config worker types', () => {
