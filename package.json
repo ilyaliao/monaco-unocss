@@ -1,7 +1,7 @@
 {
   "name": "monaco-unocss",
   "type": "module",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "packageManager": "pnpm@11.10.0",
   "description": "UnoCSS integration for Monaco editor",
   "author": {
