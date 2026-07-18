@@ -22,7 +22,7 @@ jobs:
           node-version: lts/*
           cache: pnpm
 
-      - run: pnpm i -g @antfu/ni
+      - run: npm i -g @antfu/ni
       - run: nci
       - run: nr lint
       - run: nr -C playground build
@@ -48,7 +48,7 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: pnpm
 
-      - run: pnpm i -g @antfu/ni
+      - run: npm i -g @antfu/ni
       - run: nci
       - run: nr build
       - run: nr test
