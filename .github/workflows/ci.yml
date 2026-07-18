@@ -24,6 +24,7 @@ jobs:
 
       - run: npm i -g @antfu/ni
       - run: nci
+      - run: nr build
       - run: nr lint
       - run: nr -C playground build
       - run: nr typecheck

@@ -51,7 +51,7 @@
     "lint": "eslint .",
     "prepack": "pnpm build",
     "release": "bumpp -r",
-    "test": "pnpm build && vitest",
+    "test": "vitest",
     "typecheck": "pnpm --dir playground typecheck && tsc",
     "prepare": "simple-git-hooks"
   },

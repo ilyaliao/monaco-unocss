@@ -148,8 +148,8 @@ Use the package manager pinned by `packageManager` in `package.json`.
 pnpm settings and workspace globs live in `pnpm-workspace.yaml`.
 
 - `pnpm build`: build the library with `tsdown`.
-- `pnpm test`: build the library, then run Vitest.
-- `pnpm typecheck`: type-check the playground and repository sources.
+- `pnpm test`: run Vitest. Requires `pnpm build` first.
+- `pnpm typecheck`: type-check the playground and repository sources. Requires `pnpm build` first.
 - `pnpm lint`: run ESLint.
 - `pnpm play`: run the interactive playground.
 
