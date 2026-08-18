@@ -1,0 +1,10 @@
+{
+  "name": "monaco-unocss",
+  "install": "./.cursor/install.sh",
+  "terminals": [
+    {
+      "name": "playground",
+      "command": "pnpm play"
+    }
+  ]
+}
