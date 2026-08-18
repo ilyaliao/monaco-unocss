@@ -1,0 +1,327 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+HOST="${VERIFY_HOST:-127.0.0.1}"
+PORT="${VERIFY_PORT:-5177}"
+READY_TIMEOUT_SECONDS="${VERIFY_READY_TIMEOUT:-90}"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+ROOT="$(cd "$SKILL_DIR/../../.." && pwd)"
+RUN_DIR="$SKILL_DIR/.run"
+INSTANCE_FILE="$RUN_DIR/instance.json"
+LOG_FILE="$RUN_DIR/vite.log"
+PID_FILE="$RUN_DIR/vite.pid"
+
+usage() {
+  cat <<'EOF'
+verify-playground launch|doctor|cleanup
+
+Launch the monaco-unocss playground on a dedicated verification port,
+check that this run owns it, and tear down only the process tree this
+script started.
+
+  launch    Start playground/vite on VERIFY_HOST:VERIFY_PORT (default 127.0.0.1:5177)
+  doctor    Read-only health check for the instance this script launched
+  cleanup   Kill that process tree and delete .run/, leave artifacts/ in place
+
+Environment:
+  VERIFY_HOST            bind address (default 127.0.0.1)
+  VERIFY_PORT            port (default 5177)
+  VERIFY_READY_TIMEOUT   seconds to wait for HTTP ready (default 90)
+EOF
+}
+
+die() {
+  printf 'error: %s\n' "$1" >&2
+  exit 1
+}
+
+require_cmd() {
+  command -v "$1" >/dev/null 2>&1 || die "missing command: $1"
+}
+
+pid_alive() {
+  local pid="$1"
+  [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null
+}
+
+listen_pid_on_port() {
+  local port="$1"
+  lsof -nP -iTCP:"$port" -sTCP:LISTEN -t 2>/dev/null | awk 'NF { print; exit }'
+}
+
+pid_in_tree() {
+  local target="$1"
+  local root="$2"
+  local cur="$target"
+  local guard=0
+  while [[ -n "$cur" && "$cur" != "0" && "$cur" != "1" ]]; do
+    if [[ "$cur" == "$root" ]]; then
+      return 0
+    fi
+    cur="$(ps -o ppid= -p "$cur" 2>/dev/null | tr -d ' ')"
+    guard=$((guard + 1))
+    if (( guard > 32 )); then
+      return 1
+    fi
+  done
+  return 1
+}
+
+kill_tree() {
+  local pid="$1"
+  local child
+  if ! pid_alive "$pid"; then
+    return 0
+  fi
+  while read -r child; do
+    [[ -n "$child" ]] && kill_tree "$child"
+  done < <(pgrep -P "$pid" 2>/dev/null || true)
+  kill "$pid" 2>/dev/null || true
+}
+
+wait_for_exit() {
+  local pid="$1"
+  local seconds="${2:-10}"
+  local i
+  for (( i = 0; i < seconds * 10; i++ )); do
+    pid_alive "$pid" || return 0
+    sleep 0.1
+  done
+  return 1
+}
+
+read_instance_field() {
+  local key="$1"
+  python3 - "$INSTANCE_FILE" "$key" <<'PY'
+import json, sys
+path, key = sys.argv[1], sys.argv[2]
+with open(path, encoding="utf-8") as fh:
+    data = json.load(fh)
+value = data.get(key)
+if value is None:
+    sys.exit(1)
+print(value)
+PY
+}
+
+write_instance() {
+  local pid="$1"
+  local revision="$2"
+  python3 - "$INSTANCE_FILE" "$pid" "$HOST" "$PORT" "$LOG_FILE" "$revision" "$ROOT" <<'PY'
+import json, sys
+from datetime import datetime, timezone
+path, pid, host, port, log, revision, root = sys.argv[1:8]
+payload = {
+    "pid": int(pid),
+    "host": host,
+    "port": int(port),
+    "url": f"http://{host}:{port}/",
+    "log": log,
+    "revision": revision,
+    "root": root,
+    "startedAt": datetime.now(timezone.utc).isoformat(),
+}
+with open(path, "w", encoding="utf-8") as fh:
+    json.dump(payload, fh, indent=2)
+    fh.write("\n")
+PY
+}
+
+page_title() {
+  local url="$1"
+  python3 - "$url" <<'PY'
+import sys, urllib.request
+url = sys.argv[1]
+try:
+    with urllib.request.urlopen(url, timeout=3) as response:
+        body = response.read().decode("utf-8", "replace")
+        status = response.status
+except Exception as exc:
+    print(f"unreachable:{exc}")
+    sys.exit(2)
+start = body.lower().find("<title>")
+end = body.lower().find("</title>")
+title = body[start + 7:end].strip() if start != -1 and end != -1 else ""
+print(f"{status}\t{title}")
+PY
+}
+
+stale_instance_pid() {
+  if [[ ! -f "$INSTANCE_FILE" ]]; then
+    return 1
+  fi
+  local pid
+  pid="$(read_instance_field pid 2>/dev/null || true)"
+  if [[ -n "$pid" ]] && pid_alive "$pid"; then
+    printf '%s' "$pid"
+    return 0
+  fi
+  return 1
+}
+
+cmd_launch() {
+  require_cmd pnpm
+  require_cmd lsof
+  require_cmd python3
+  require_cmd pgrep
+
+  mkdir -p "$RUN_DIR"
+
+  local existing
+  if existing="$(stale_instance_pid)"; then
+    die "verification instance already running (pid $existing). Run verify-playground cleanup first, or drive that instance. Do not start a second playground on a shared port."
+  fi
+
+  if [[ -f "$INSTANCE_FILE" ]]; then
+    rm -f "$INSTANCE_FILE" "$PID_FILE"
+  fi
+
+  local occupant
+  occupant="$(listen_pid_on_port "$PORT" || true)"
+  if [[ -n "$occupant" ]]; then
+    die "port $PORT is already in use by pid $occupant. Refusing to steal it. Set VERIFY_PORT to a free port, or stop that process if it is yours."
+  fi
+
+  if [[ ! -d "$ROOT/node_modules" ]]; then
+    (cd "$ROOT" && pnpm install --frozen-lockfile)
+  fi
+
+  : >"$LOG_FILE"
+
+  local pid
+  pid="$(python3 - "$ROOT" "$HOST" "$PORT" "$LOG_FILE" <<'PY'
+import subprocess
+import sys
+
+root, host, port, log = sys.argv[1:5]
+with open(log, "ab", buffering=0) as log_fh:
+    proc = subprocess.Popen(
+        [
+            "pnpm",
+            "--dir",
+            "playground",
+            "exec",
+            "vite",
+            "--host",
+            host,
+            "--port",
+            port,
+            "--strictPort",
+        ],
+        cwd=root,
+        stdout=log_fh,
+        stderr=subprocess.STDOUT,
+        start_new_session=True,
+    )
+print(proc.pid)
+PY
+  )"
+  echo "$pid" >"$PID_FILE"
+
+  local revision
+  revision="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+  write_instance "$pid" "$revision"
+
+  local i
+  for (( i = 0; i < READY_TIMEOUT_SECONDS * 5; i++ )); do
+    if ! pid_alive "$pid"; then
+      tail -n 40 "$LOG_FILE" >&2 || true
+      rm -f "$INSTANCE_FILE" "$PID_FILE"
+      die "playground process exited before it became ready. See $LOG_FILE"
+    fi
+    if [[ -n "$(listen_pid_on_port "$PORT" || true)" ]]; then
+      if page_title "http://$HOST:$PORT/" >/dev/null 2>&1; then
+        cmd_doctor
+        return 0
+      fi
+    fi
+    sleep 0.2
+  done
+
+  tail -n 40 "$LOG_FILE" >&2 || true
+  kill_tree "$pid"
+  rm -f "$INSTANCE_FILE" "$PID_FILE"
+  die "timed out waiting for http://$HOST:$PORT/ after ${READY_TIMEOUT_SECONDS}s"
+}
+
+cmd_doctor() {
+  require_cmd lsof
+  require_cmd python3
+
+  [[ -f "$INSTANCE_FILE" ]] || die "no instance file at $INSTANCE_FILE. Run verify-playground launch first."
+
+  local pid port host url revision log
+  pid="$(read_instance_field pid)"
+  port="$(read_instance_field port)"
+  host="$(read_instance_field host)"
+  url="$(read_instance_field url)"
+  revision="$(read_instance_field revision)"
+  log="$(read_instance_field log)"
+
+  pid_alive "$pid" || die "recorded pid $pid is not running. The playground died. Read $log, then cleanup and launch again."
+
+  local occupant
+  occupant="$(listen_pid_on_port "$port" || true)"
+  [[ -n "$occupant" ]] || die "nothing is listening on $host:$port. Recorded pid $pid is alive but is not serving the playground."
+  pid_in_tree "$occupant" "$pid" || die "pid $occupant is listening on $host:$port, but it is not in the process tree of the verification pid $pid. Refusing to drive a shared instance."
+
+  local title_line status title
+  title_line="$(page_title "$url")" || die "playground at $url did not respond"
+  status="${title_line%%$'\t'*}"
+  title="${title_line#*$'\t'}"
+  [[ "$status" == "200" ]] || die "unexpected HTTP status $status from $url"
+  [[ "$title" == "monaco-unocss playground" ]] || die "unexpected page title '$title' at $url"
+
+  cat <<EOF
+ok=true
+url=$url
+pid=$pid
+listen_pid=$occupant
+port=$port
+host=$host
+revision=$revision
+title=$title
+log=$log
+EOF
+}
+
+cmd_cleanup() {
+  local pid=""
+  if [[ -f "$INSTANCE_FILE" ]]; then
+    pid="$(read_instance_field pid 2>/dev/null || true)"
+  elif [[ -f "$PID_FILE" ]]; then
+    pid="$(cat "$PID_FILE")"
+  fi
+
+  if [[ -n "$pid" ]]; then
+    kill_tree "$pid"
+    if ! wait_for_exit "$pid" 8; then
+      kill -9 "$pid" 2>/dev/null || true
+      while read -r child; do
+        [[ -n "$child" ]] && kill -9 "$child" 2>/dev/null || true
+      done < <(pgrep -P "$pid" 2>/dev/null || true)
+    fi
+  fi
+
+  rm -rf "$RUN_DIR"
+  printf 'cleaned verification process tree%s\n' "${pid:+ (pid $pid)}"
+  printf 'left artifacts in %s/artifacts\n' "$SKILL_DIR"
+}
+
+main() {
+  local cmd="${1:-}"
+  case "$cmd" in
+    launch) cmd_launch ;;
+    doctor) cmd_doctor ;;
+    cleanup) cmd_cleanup ;;
+    -h|--help|help|"") usage ;;
+    *)
+      usage >&2
+      die "unknown command: $cmd"
+      ;;
+  esac
+}
+
+main "$@"
