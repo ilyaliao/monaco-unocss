@@ -1,0 +1,270 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+ARTIFACTS_DIR="$SKILL_DIR/artifacts"
+TIMEOUT_MS="${DRIVE_TIMEOUT_MS:-20000}"
+
+usage() {
+  cat <<'EOF'
+drive <command> [args]
+
+agent-browser driver for the playground instance launched by verify-playground.
+Every command acts on the session named by AGENT_BROWSER_SESSION.
+
+  open [light|dark]        Doctor, pin viewport and color scheme, load the doctor URL, wait for first CSS
+  ready                    Wait until the page is visible, the CSS pane shows a byte count, and the preview has CSS
+  state                    JSON: status, theme flags, visible suggest rows, visible hover, color widgets
+  css                      Generated CSS from the preview iframe style tag
+  lines [substring]        Rendered HTML editor lines, optionally filtered
+  goto <line>              Focus the HTML editor, Ctrl+G to <line>, caret to line end
+  move <token>             Move the mouse onto the first rendered <token> in the HTML editor
+  click-color <token>      Wait for the color decorator in front of the rendered <token>, click it,
+                           wait for the color picker
+  wait-css <regex>         Wait until the preview CSS matches the JS regex
+  wait-hover <text>        Wait until a visible Monaco hover contains <text>
+  wait-suggest <label>     Wait until the open suggest widget lists <label>
+  capture <feature> <step> Write <step>.png, <step>.aria.txt, <step>.state.json, <step>.css
+                           under artifacts/<feature>/
+  close                    Close this browser session
+
+Environment:
+  AGENT_BROWSER_SESSION    required, from: agent-browser session id --scope worktree --prefix verify
+  DRIVE_TIMEOUT_MS         wait timeout (default 20000)
+EOF
+}
+
+die() {
+  printf 'error: %s\n' "$1" >&2
+  exit 1
+}
+
+read -r -d '' PRELUDE <<'JS' || true
+const norm = s => s.replace(/\u00a0/g, ' ')
+const htmlEditor = () => document.querySelector('textarea[name="editable-html-document"]').closest('.monaco-editor')
+const previewDoc = () => document.querySelector('iframe[title="Rendered HTML preview"]')?.contentDocument ?? null
+const previewCss = () => previewDoc()?.querySelector('style[data-monaco-unocss="generated"]')?.textContent ?? null
+const cssStatus = () => document.querySelector('.pane-detail[aria-live="polite"]')?.textContent.trim() ?? null
+const renderedLines = () => [...htmlEditor().querySelectorAll('.view-line')]
+  .sort((a, b) => parseFloat(a.style.top) - parseFloat(b.style.top))
+const center = r => `${Math.round(r.x + r.width / 2)} ${Math.round(r.y + r.height / 2)}`
+const visible = el => !!el && el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden'
+const hoverText = () => {
+  const hover = [...document.querySelectorAll('.monaco-hover')].find(h => visible(h) && h.textContent.trim())
+  return hover ? norm(hover.textContent).trim() : null
+}
+const suggestRows = () => {
+  const widget = document.querySelector('.suggest-widget.visible')
+  return widget ? [...widget.querySelectorAll('.monaco-list-row')].map(r => r.getAttribute('aria-label')?.split(',')[0]) : null
+}
+const pickerText = () => {
+  const picker = document.querySelector('.colorpicker-widget')
+  return visible(picker) ? norm(picker.querySelector('.picked-color')?.textContent ?? '').trim() : null
+}
+const colorDecoratorBefore = hit => [...hit.line.querySelectorAll('.colorpicker-color-decoration')]
+  .map(el => el.getBoundingClientRect())
+  .find(r => r.right <= hit.rect.left + 1 && hit.rect.left - r.right <= 4) ?? null
+const tokenRect = token => {
+  for (const line of renderedLines()) {
+    const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT)
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const index = norm(node.textContent).indexOf(token)
+      if (index < 0)
+        continue
+      const range = document.createRange()
+      range.setStart(node, index)
+      range.setEnd(node, index + token.length)
+      return { line, rect: range.getBoundingClientRect() }
+    }
+  }
+  return null
+}
+JS
+
+page() {
+  local body="$1"
+  printf '(() => {\n%s\n%s\n})()' "$PRELUDE" "$body" \
+    | agent-browser --json eval --stdin \
+    | node -e '
+      let raw = ""
+      process.stdin.on("data", d => raw += d).on("end", () => {
+        const out = JSON.parse(raw)
+        if (!out.success) {
+          console.error(`error: ${out.error ?? "eval failed"}`)
+          process.exit(1)
+        }
+        const value = out.data.result
+        if (value && typeof value === "object" && "error" in value && Object.keys(value).length === 1) {
+          console.error(`error: ${value.error}`)
+          process.exit(1)
+        }
+        process.stdout.write(typeof value === "string" ? `${value}\n` : `${JSON.stringify(value, null, 2)}\n`)
+      })'
+}
+
+wait_for() {
+  local expr="$1"
+  agent-browser wait --timeout "$TIMEOUT_MS" --fn "$(printf '(() => { try {\n%s\nreturn Boolean(%s)\n} catch { return false } })()' "$PRELUDE" "$expr")" >/dev/null
+}
+
+json_string() {
+  node -e 'process.stdout.write(JSON.stringify(process.argv[1]))' "$1"
+}
+
+mouse_at() {
+  local x y
+  read -r x y <<<"$(page "$1")"
+  agent-browser mouse move "$x" "$y" >/dev/null
+  printf '%s %s\n' "$x" "$y"
+}
+
+cmd_ready() {
+  [[ "$(page 'return document.visibilityState')" == visible ]] \
+    || die 'page is hidden, so Monaco will not paint. Run drive open again; it relaunches a hidden session.'
+  wait_for '/^[\d,]+ bytes$/.test(cssStatus() ?? "") && previewCss() !== null' \
+    || die "CSS pane never showed a byte count within ${TIMEOUT_MS}ms"
+  page 'return cssStatus()'
+}
+
+cmd_open() {
+  local scheme="${1:-light}"
+  [[ "$scheme" == light || "$scheme" == dark ]] || die "color scheme must be light or dark, got $scheme"
+  local doctor url
+  doctor="$("$SCRIPT_DIR/verify-playground" doctor)" || die 'doctor failed. Do not drive this instance.'
+  url="$(sed -n 's/^url=//p' <<<"$doctor")"
+  [[ -n "$url" ]] || die 'doctor printed no url'
+  load_page "$url" "$scheme"
+  if [[ "$(page 'return document.visibilityState')" != visible ]]; then
+    agent-browser close >/dev/null
+    load_page "$url" "$scheme"
+  fi
+  cmd_ready
+}
+
+load_page() {
+  agent-browser set viewport 1440 900 >/dev/null
+  agent-browser set media "$2" >/dev/null
+  agent-browser open "$1" >/dev/null
+}
+
+cmd_state() {
+  page '
+    const pressed = document.querySelector("button[aria-label=\"Dark theme\"]")?.getAttribute("aria-pressed")
+    return {
+      url: location.href,
+      visibility: document.visibilityState,
+      status: cssStatus(),
+      previewCssBytes: previewCss()?.length ?? null,
+      darkPressed: pressed === "true",
+      appDark: document.documentElement.classList.contains("dark"),
+      previewDark: !!previewDoc()?.documentElement.classList.contains("dark"),
+      htmlEditorDark: htmlEditor().classList.contains("vs-dark"),
+      previewHeading: norm(previewDoc()?.querySelector("h1")?.textContent ?? "").trim() || null,
+      suggest: suggestRows(),
+      suggestFocused: document.querySelector(".suggest-widget.visible .monaco-list-row.focused")?.getAttribute("aria-label")?.split(",")[0] ?? null,
+      hover: hoverText(),
+      colorDecorations: htmlEditor().querySelectorAll(".colorpicker-color-decoration").length,
+      unocssColorChips: htmlEditor().querySelectorAll("[class*=\"unocss-color-decoration-\"]").length,
+      colorPicker: pickerText(),
+    }'
+}
+
+cmd_css() {
+  page 'const css = previewCss(); return css === null ? { error: "preview has no generated style tag" } : css'
+}
+
+cmd_lines() {
+  local filter
+  filter="$(json_string "${1:-}")"
+  page "return renderedLines().map(l => norm(l.textContent)).filter(t => t.includes($filter)).join('\n')"
+}
+
+cmd_goto() {
+  [[ "${1:-}" =~ ^[0-9]+$ ]] || die 'goto needs a line number'
+  agent-browser focus 'textarea[name="editable-html-document"]' >/dev/null
+  agent-browser press Control+g >/dev/null
+  agent-browser keyboard type "$1" >/dev/null
+  agent-browser press Enter >/dev/null
+  agent-browser press End >/dev/null
+}
+
+cmd_move() {
+  [[ -n "${1:-}" ]] || die 'move needs a token'
+  local token
+  token="$(json_string "$1")"
+  mouse_at "const hit = tokenRect($token); return hit ? center(hit.rect) : { error: 'token not rendered in one text node: ' + $token }"
+}
+
+cmd_click_color() {
+  [[ -n "${1:-}" ]] || die 'click-color needs a token'
+  local token
+  token="$(json_string "$1")"
+  wait_for "tokenRect($token) && colorDecoratorBefore(tokenRect($token))" \
+    || die "no color decorator in front of $1 within ${TIMEOUT_MS}ms"
+  mouse_at "return center(colorDecoratorBefore(tokenRect($token)))"
+  agent-browser mouse down >/dev/null
+  agent-browser mouse up >/dev/null
+  wait_for 'pickerText()' || die "color picker did not open within ${TIMEOUT_MS}ms"
+  page 'return pickerText()'
+}
+
+cmd_wait_css() {
+  [[ -n "${1:-}" ]] || die 'wait-css needs a regex'
+  wait_for "new RegExp($(json_string "$1")).test(previewCss() ?? '')" || die "preview CSS never matched /$1/ within ${TIMEOUT_MS}ms"
+  printf 'matched /%s/\n' "$1"
+}
+
+cmd_wait_hover() {
+  [[ -n "${1:-}" ]] || die 'wait-hover needs text'
+  wait_for "hoverText()?.includes($(json_string "$1"))" || die "no visible hover containing $1 within ${TIMEOUT_MS}ms"
+  page 'return hoverText()'
+}
+
+cmd_wait_suggest() {
+  [[ -n "${1:-}" ]] || die 'wait-suggest needs a label'
+  wait_for "suggestRows()?.includes($(json_string "$1"))" || die "suggest widget never listed $1 within ${TIMEOUT_MS}ms"
+  page 'return suggestRows().join("\n")'
+}
+
+cmd_capture() {
+  [[ -n "${1:-}" && -n "${2:-}" ]] || die 'capture needs <feature> <step>'
+  local dir="$ARTIFACTS_DIR/$1"
+  mkdir -p "$dir"
+  agent-browser screenshot "$dir/$2.png" >/dev/null
+  agent-browser snapshot >"$dir/$2.aria.txt"
+  cmd_state >"$dir/$2.state.json"
+  cmd_css >"$dir/$2.css"
+  printf '%s\n' "$dir/$2".{png,aria.txt,state.json,css}
+}
+
+main() {
+  local cmd="${1:-}"
+  shift || true
+  if [[ "$cmd" != "" && "$cmd" != help && "$cmd" != -h && "$cmd" != --help ]]; then
+    command -v agent-browser >/dev/null 2>&1 || die 'agent-browser not found. Install: npm i -g agent-browser && agent-browser install'
+    [[ -n "${AGENT_BROWSER_SESSION:-}" ]] || die 'AGENT_BROWSER_SESSION is unset. Run: export AGENT_BROWSER_SESSION="$(agent-browser session id --scope worktree --prefix verify)"'
+  fi
+  case "$cmd" in
+    open) cmd_open "$@" ;;
+    ready) cmd_ready ;;
+    state) cmd_state ;;
+    css) cmd_css ;;
+    lines) cmd_lines "$@" ;;
+    goto) cmd_goto "$@" ;;
+    move) cmd_move "$@" ;;
+    click-color) cmd_click_color "$@" ;;
+    wait-css) cmd_wait_css "$@" ;;
+    wait-hover) cmd_wait_hover "$@" ;;
+    wait-suggest) cmd_wait_suggest "$@" ;;
+    capture) cmd_capture "$@" ;;
+    close) agent-browser close ;;
+    -h|--help|help|"") usage ;;
+    *)
+      usage >&2
+      die "unknown command: $cmd"
+      ;;
+  esac
+}
+
+main "$@"
